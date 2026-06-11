@@ -15,7 +15,7 @@ export const SplashScreen: React.FC<{ onFinish?: () => void }> = ({ onFinish }) 
     <View className="flex-1 bg-white relative">
       <Image
         source={require('../../assets/background.png')}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         resizeMode="cover"
       />
 

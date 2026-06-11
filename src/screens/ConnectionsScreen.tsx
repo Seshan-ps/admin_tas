@@ -7,214 +7,207 @@ import {
   SafeAreaView,
   Alert,
   Image,
+  StyleSheet,
+  Platform,
 } from 'react-native';
 import {
   ArrowLeft,
-  CheckCircle,
-  XCircle,
-  Shield,
-  Clock,
-  Download,
-  AlertTriangle,
+  Home,
+  BarChart3,
+  Newspaper,
+  Users,
 } from 'lucide-react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { supabase } from '../config/supabase';
+import { dbStore, QueueItem, ApprovedItem } from '../config/dbStore';
 
-interface QueueItem {
-  id: string;
-  user_name: string;
-  designation: string;
-  blockchain_verified: boolean;
-  warning_flag?: string;
-  avatar: any;
-}
+
 
 interface ConnectionsScreenProps {
   onBack?: () => void;
+  onTabPress?: (tab: string) => void;
+  navigation?: any;
 }
 
-export const ConnectionsScreen: React.FC<ConnectionsScreenProps> = ({ onBack }) => {
-  const [queue, setQueue] = useState<QueueItem[]>([
-    {
-      id: '1',
-      user_name: 'Marcus Vance',
-      designation: 'Financial Auditor',
-      blockchain_verified: true,
-      avatar: require('../../assets/admin_profile.png'),
-    },
-    {
-      id: '2',
-      user_name: 'Julian Sterling',
-      designation: 'CPA Associate',
-      blockchain_verified: false,
-      warning_flag: 'Previous Association: Pending Clarification',
-      avatar: require('../../assets/elena_profile.png'),
-    },
-  ]);
+export const ConnectionsScreen: React.FC<ConnectionsScreenProps> = ({ 
+  onBack,
+  onTabPress,
+  navigation,
+}) => {
+  const [queue, setQueue] = useState<QueueItem[]>(dbStore.getQueue());
+  const [approvedList, setApprovedList] = useState<ApprovedItem[]>(dbStore.getApprovedList());
 
-  const [auditLogs, setAuditLogs] = useState([
-    { id: 'log1', action: 'Approved Elena Rodriguez', timestamp: '2h ago', actor: 'Admin VGM' },
-    { id: 'log2', action: 'Approved Alistair Vance', timestamp: '5h ago', actor: 'Admin VGM' },
-  ]);
-
-  // Fetch queue from Supabase if active
   useEffect(() => {
-    const fetchQueue = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('connections_queue')
-          .select('*, profiles(full_name, department)')
-          .eq('verification_status', 'pending');
-        
-        if (data && data.length > 0) {
-          const formatted = data.map((item: any) => ({
-            id: item.id,
-            user_name: item.profiles?.full_name || 'Anonymous User',
-            designation: item.profiles?.department || 'Member Request',
-            blockchain_verified: item.blockchain_verified,
-            warning_flag: item.warning_flag,
-            avatar: require('../../assets/admin_profile.png'),
-          }));
-          setQueue(formatted);
-        }
-      } catch (e) {
-        // Fallback to mock
-      }
-    };
-    fetchQueue();
+    const unsubscribe = dbStore.subscribe(() => {
+      setQueue([...dbStore.getQueue()]);
+      setApprovedList([...dbStore.getApprovedList()]);
+    });
+    return unsubscribe;
   }, []);
 
   const handleAction = async (id: string, status: 'approved' | 'declined') => {
-    try {
-      const { error } = await supabase
-        .from('connections_queue')
-        .update({ verification_status: status, updated_at: new Date() })
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      Alert.alert('State Updated', `Verification request has been ${status}.`);
-      setQueue(queue.filter((q) => q.id !== id));
-      
-      const newLog = {
-        id: Date.now().toString(),
-        action: `${status.charAt(0).toUpperCase() + status.slice(1)} user ${queue.find((q) => q.id === id)?.user_name}`,
-        timestamp: 'Just now',
-        actor: 'Admin VGM',
-      };
-      setAuditLogs([newLog, ...auditLogs]);
-    } catch (err) {
-      // Local execution fallback
-      Alert.alert('Local Success', `Request has been marked as ${status} locally.`);
-      setQueue(queue.filter((q) => q.id !== id));
-      const newLog = {
-        id: Date.now().toString(),
-        action: `${status.charAt(0).toUpperCase() + status.slice(1)} user ${queue.find((q) => q.id === id)?.user_name}`,
-        timestamp: 'Just now',
-        actor: 'Admin VGM (Offline)',
-      };
-      setAuditLogs([newLog, ...auditLogs]);
+    if (status === 'approved') {
+      await dbStore.approveConnection(id);
+    } else {
+      await dbStore.declineConnection(id);
     }
+    Alert.alert('Success', `Verification request has been ${status === 'approved' ? 'approved' : 'declined'}.`);
   };
 
-  const handleExportLogs = () => {
-    Alert.alert('Audit Logs Exported', 'Historical audit log sheet has been compiled and downloaded as CSV.');
-  };
+  const DirectoryBookIcon = ({ color }: { color: string }) => (
+    <View style={{ width: 22, height: 22, justifyContent: 'center', alignItems: 'center' }}>
+      <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <Rect x="4" y="2" width="16" height="20" rx="3" fill="none" stroke={color} strokeWidth="2.5" />
+        <Path d="M8 2v20" stroke={color} strokeWidth="1.5" />
+        <Circle cx="14" cy="10" r="3" stroke={color} strokeWidth="2" fill="white" />
+        <Path d="M16.5 12.5l2.5 2.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      </Svg>
+    </View>
+  );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F8FAFC]">
+    <SafeAreaView className="flex-1 bg-[#F4F7FC] relative">
       {/* Top Header */}
-      <View className="px-4 py-3 bg-[#E9F0FA] border-b border-blue-100 flex-row items-center">
+      <View className="flex-row items-center px-4 py-4 bg-[#EBF3FC] border-b border-blue-100/50 z-20">
         {onBack && (
-          <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3">
-            <ArrowLeft size={22} color="#134074" />
+          <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3 rounded-full bg-white shadow-sm border border-slate-100">
+            <ArrowLeft size={18} color="#134074" />
           </TouchableOpacity>
         )}
-        <Text className="text-xl font-bold text-[#134074]">Verification Queue</Text>
+        <Text className="text-[20px] font-bold text-[#134074]">Connections</Text>
       </View>
 
-      <ScrollView className="flex-1 p-4" showsVerticalScrollIndicator={true}>
+      <ScrollView 
+        className="flex-1 no-scrollbar" 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 130 }}
+      >
         {/* Verification Queue Section */}
-        <Text className="text-lg font-bold text-[#134074] mb-3">Pending Verification</Text>
+        <Text className="text-[24px] font-extrabold text-[#134074] mx-4 mt-5 mb-3">Approval Requests</Text>
+
+        {/* Info Banner */}
+        <View className="bg-[#134074] mx-4 mb-4 px-5 py-3.5 rounded-xl flex-row items-center shadow-sm">
+          <Text className="text-white font-extrabold text-[32px] mr-4 leading-none">{queue.length}</Text>
+          <Text className="text-blue-100/80 text-[11px] font-extrabold tracking-widest uppercase">Awaiting Verification</Text>
+        </View>
 
         {queue.length === 0 ? (
-          <View className="bg-white rounded-2xl p-6 border border-slate-150 shadow-sm items-center justify-center mb-6">
-            <CheckCircle size={36} color="#70B62C" />
-            <Text className="text-slate-500 font-bold mt-3 text-sm">All verification items resolved</Text>
+          <View className="bg-white rounded-2xl p-6 mx-4 border border-slate-200 shadow-sm items-center justify-center mb-6">
+            <Text className="text-slate-500 font-bold text-sm">All verification items resolved</Text>
           </View>
         ) : (
           queue.map((item) => (
-            <View key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4 mb-3.5 shadow-sm">
-              <View className="flex-row items-center mb-3">
-                <Image source={item.avatar} className="w-12 h-12 rounded-full border border-slate-200" />
-                <View className="ml-3">
-                  <Text className="font-extrabold text-slate-800 text-[15px]">{item.user_name}</Text>
-                  <Text className="text-xs text-slate-500 font-semibold">{item.designation}</Text>
+            <View key={item.id} className="bg-white border border-slate-200/80 rounded-2xl mx-4 mb-4 shadow-sm overflow-hidden">
+              <View className="flex-row items-center p-4">
+                <Image source={item.avatar} className="w-14 h-14 rounded-xl border border-slate-100" />
+                <View className="ml-3.5 flex-1">
+                  <View className="flex-row justify-between items-start">
+                    <Text className="font-bold text-[#134074] text-[16px] flex-1 mr-2">{item.user_name}</Text>
+                    <View className="bg-[#E9F0FA] border border-blue-150/40 rounded px-2 py-0.5">
+                      <Text className="text-[10px] font-bold text-[#134074]">{item.id_badge}</Text>
+                    </View>
+                  </View>
+                  <Text className="text-[13px] text-slate-500 mt-1">{item.designation}</Text>
                 </View>
               </View>
 
-              {/* Status Flag */}
-              {item.blockchain_verified ? (
-                <View className="bg-green-50 border border-green-100 rounded-lg p-2.5 flex-row items-center mb-4 space-x-2">
-                  <Shield size={16} color="#3F7E1F" />
-                  <Text className="text-[#3F7E1F] text-xs font-bold">Credentials Verified via Blockchain</Text>
-                </View>
-              ) : (
-                item.warning_flag && (
-                  <View className="bg-red-50 border border-red-100 rounded-lg p-2.5 flex-row items-center mb-4 space-x-2">
-                    <AlertTriangle size={16} color="#8A1F1F" />
-                    <Text className="text-[#8A1F1F] text-xs font-bold">{item.warning_flag}</Text>
-                  </View>
-                )
-              )}
-
               {/* Action Buttons */}
-              <View className="flex-row space-x-3.5 pt-3 border-t border-slate-100">
+              <View className="flex-row border-t border-slate-100 overflow-hidden">
                 <TouchableOpacity
                   onPress={() => handleAction(item.id, 'declined')}
-                  className="flex-1 bg-white border border-slate-200 rounded-lg py-2 flex-row justify-center items-center space-x-1"
+                  className="flex-1 py-3.5 bg-white items-center justify-center border-r border-slate-100"
                 >
-                  <XCircle size={14} color="#8A1F1F" />
-                  <Text className="text-[#8A1F1F] font-bold text-xs">Decline</Text>
+                  <Text className="text-slate-500 font-bold text-sm">Decline</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => handleAction(item.id, 'approved')}
-                  className="flex-1 bg-[#134074] rounded-lg py-2 flex-row justify-center items-center space-x-1"
+                  className="flex-1 py-3.5 bg-[#48752C] items-center justify-center"
                 >
-                  <CheckCircle size={14} color="white" />
-                  <Text className="text-white font-bold text-xs">Approve</Text>
+                  <Text className="text-white font-bold text-sm">Approve</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ))
         )}
 
-        {/* Audit Log Section */}
-        <View className="flex-row justify-between items-center mb-3 mt-4">
-          <Text className="text-lg font-bold text-[#134074]">Historical Audit Log</Text>
-          <TouchableOpacity onPress={handleExportLogs} className="flex-row items-center space-x-1 bg-blue-50 border border-blue-100 rounded px-2.5 py-1">
-            <Download size={12} color="#134074" />
-            <Text className="text-[#134074] text-[10px] font-bold">Export Logs</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Recent Approvals Section */}
+        <Text className="text-[20px] font-bold text-[#134074] mx-4 mt-2 mb-4">Recent Approvals</Text>
 
-        <View className="bg-white border border-slate-150 rounded-2xl p-4 shadow-sm mb-12">
-          <View className="space-y-3">
-            {auditLogs.map((log) => (
-              <View key={log.id} className="flex-row justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
-                <View>
-                  <Text className="text-slate-800 font-bold text-xs">{log.action}</Text>
-                  <Text className="text-[10px] text-slate-400 font-semibold mt-0.5">Verified by {log.actor}</Text>
+        <View className="mx-4 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm mb-4">
+          <View className="divide-y divide-slate-100">
+            {approvedList.map((log) => (
+              <View key={log.id} className="flex-row justify-between items-center py-3.5 border-b border-slate-100 last:border-b-0">
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Image source={log.avatar} className="w-12 h-12 rounded-xl border border-slate-100" />
+                  <View className="ml-3.5 flex-1">
+                    <Text className="text-[#134074] font-bold text-[15px]">{log.user_name}</Text>
+                    <Text className="text-[12px] text-slate-500 mt-0.5">{log.designation}</Text>
+                  </View>
                 </View>
-                <View className="flex-row items-center space-x-1">
-                  <Clock size={11} color="#94a3b8" />
-                  <Text className="text-[10px] text-slate-400 font-semibold">{log.timestamp}</Text>
-                </View>
+                <TouchableOpacity 
+                  onPress={() => Alert.alert('Profile', `Opening profile of ${log.user_name}`)}
+                  className="bg-[#134074] px-4.5 py-1.5 rounded-full"
+                >
+                  <Text className="text-white font-bold text-[11px] tracking-wider">VIEW</Text>
+                </TouchableOpacity>
               </View>
             ))}
           </View>
         </View>
       </ScrollView>
+
+      {/* Bottom Navigation (Fallback when not in Navigation Stack) */}
+      {!navigation && (
+        <View 
+          style={{ 
+            position: 'absolute', 
+            bottom: 0, 
+            left: 0, 
+            right: 0, 
+            flexDirection: 'row', 
+            justifyContent: 'space-around', 
+            alignItems: 'center', 
+            backgroundColor: '#ffffff', 
+            borderTopWidth: 1, 
+            borderTopColor: '#e2e8f0', 
+            borderTopLeftRadius: 24, 
+            borderTopRightRadius: 24, 
+            paddingVertical: 12, 
+            paddingHorizontal: 20, 
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            elevation: 8,
+            zIndex: 20 
+          }}
+        >
+          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('feed')}>
+            <Home size={22} color="#134074" />
+          </TouchableOpacity>
+
+          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('analytics')}>
+            <BarChart3 size={22} color="#134074" />
+          </TouchableOpacity>
+
+          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('posts_all')}>
+            <Newspaper size={22} color="#134074" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            className="flex-row items-center px-4 py-2 rounded-full bg-[#f0fdf4]" 
+            onPress={() => onTabPress?.('Connect')}
+          >
+            <Users size={20} color="#70B62C" />
+            <Text className="text-xs font-bold text-[#70B62C] ml-2">Connect</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
+            <DirectoryBookIcon color="#134074" />
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 };

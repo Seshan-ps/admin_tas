@@ -28,9 +28,74 @@ import {
   Bookmark,
   Share2,
   ThumbsUp,
+  X,
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
+
+interface Comment {
+  id: string;
+  authorName: string;
+  avatar?: any;
+  timestamp: string;
+  content: string;
+  likesCount: number;
+  isLiked?: boolean;
+}
+
+interface FeedPost {
+  id: string;
+  authorName: string;
+  avatar?: any;
+  subtitle: string;
+  postBody: string;
+  postImage?: any;
+  imageTag?: string;
+  likesCount: number;
+  commentsCount: number;
+  sharesCount: number;
+  isLiked: boolean;
+  isShared: boolean;
+  isCommentsExpanded: boolean;
+  comments: Comment[];
+  quoteText?: string;
+  memberProfileParams?: any;
+}
+
+const UserAvatar = ({ name, image, size = 32 }: { name: string; image?: any; size?: number }) => {
+  if (image) {
+    return (
+      <Image
+        source={image}
+        style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 1, borderColor: '#E2E8F0' }}
+      />
+    );
+  }
+  const colors = ['#1E3A8A', '#0D9488', '#B45309', '#4338CA', '#0369A1', '#0F766E', '#7C2D12'];
+  const charCodeSum = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const bgColor = colors[charCodeSum % colors.length];
+  const initials = name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: bgColor,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <Text style={{ color: '#FFFFFF', fontSize: size * 0.38, fontWeight: '700' }}>{initials}</Text>
+    </View>
+  );
+};
 
 interface HomeScreenProps {
   onSignOut: () => void;
@@ -38,7 +103,222 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onSignOut, navigation }) => {
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([
+    {
+      id: '1',
+      authorName: 'Texcity Accountants Society',
+      avatar: require('../../assets/logo_icon.png'),
+      subtitle: 'Promoted • 10,240 members',
+      postBody: 'We are pleased to announce the successful rollout of the **Q3 Security Patch** for the national administration portal. All member accounts now benefit from enhanced biometric authentication layers. Ensure your regional office has updated their node.',
+      postImage: require('../../assets/server_room_update.png'),
+      imageTag: 'System Update 4.2.0',
+      likesCount: 42,
+      commentsCount: 12,
+      sharesCount: 0,
+      isLiked: false,
+      isShared: false,
+      isCommentsExpanded: false,
+      memberProfileParams: {
+        name: 'Dr. Alistair Vance',
+        role: 'Chief Financial Auditor',
+        branch: 'London Branch',
+        tierLabel: 'Platinum Member',
+        memberId: 'TAS-9920-PL',
+        joinDate: 'Joined: Jan 2015',
+        email: 'a.vance@tas-governance.org',
+        fullIdCode: '9920-AV-TAS',
+        joinDateFull: 'January 14, 2015',
+        firm: 'Global Trust',
+        avatar: require('../../assets/admin_profile.png'),
+      },
+      comments: [
+        {
+          id: '1_1',
+          authorName: 'Sarah Jenkins',
+          avatar: require('../../assets/elena_profile.png'),
+          timestamp: '10m ago',
+          content: 'Great update on the security patch! The biometric layer is a much-needed addition for our regional nodes.',
+          likesCount: 22,
+          isLiked: false,
+        },
+        {
+          id: '1_2',
+          authorName: 'David Chen',
+          timestamp: '45m ago',
+          content: 'Will there be a technical briefing for the IT administrators regarding the node update process?',
+          likesCount: 12,
+          isLiked: false,
+        }
+      ]
+    },
+    {
+      id: '2',
+      authorName: 'Elena Rodriguez, CPA',
+      avatar: require('../../assets/elena_profile.png'),
+      subtitle: 'Regional Director at TAS South',
+      postBody: "Is anyone else observing a significant increase in automated reconciliation errors following the latest API update? We've had to revert to manual validation for three major enterprise audits this morning.",
+      quoteText: '"Maintaining fiscal integrity requires human oversight, especially during transition phases."',
+      likesCount: 8,
+      commentsCount: 24,
+      sharesCount: 0,
+      isLiked: true,
+      isShared: false,
+      isCommentsExpanded: false,
+      memberProfileParams: {
+        name: 'Elena Rodriguez',
+        role: 'Partner',
+        branch: 'Rodriguez & Assoc.',
+        tierLabel: 'Senior Fellow',
+        memberId: 'TAS-4412-SR',
+        joinDate: 'Joined: Mar 2018',
+        email: 'elena.rodriguez@tas-governance.org',
+        fullIdCode: '4412-ER-TAS',
+        joinDateFull: 'March 10, 2018',
+        firm: 'Rodriguez & Assoc.',
+        avatar: require('../../assets/elena_profile.png'),
+      },
+      comments: [
+        {
+          id: '2_1',
+          authorName: 'Dr. Alistair Vance',
+          avatar: require('../../assets/admin_profile.png'),
+          timestamp: '1h ago',
+          content: "We observed similar reconciliation discrepancies in the London Branch. Reverting to version 4.1.2 solved it temporarily.",
+          likesCount: 5,
+          isLiked: false,
+        },
+        {
+          id: '2_2',
+          authorName: 'Marcus Aurelius',
+          timestamp: '1.5h ago',
+          content: "Thanks for raising this Elena, we are looking into a hotfix patch from the dev side.",
+          likesCount: 3,
+          isLiked: false,
+        }
+      ]
+    }
+  ]);
+
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const handleLikePost = (postId: string) => {
+    setFeedPosts((prevPosts) =>
+      prevPosts.map((post) => {
+        if (post.id === postId) {
+          const isLiked = !post.isLiked;
+          return {
+            ...post,
+            isLiked,
+            likesCount: isLiked ? post.likesCount + 1 : post.likesCount - 1,
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const handleToggleComments = (postId: string) => {
+    setFeedPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post.id === postId
+          ? { ...post, isCommentsExpanded: !post.isCommentsExpanded }
+          : post
+      )
+    );
+  };
+
+  const handleCommentLike = (postId: string, commentId: string) => {
+    setFeedPosts((prevPosts) =>
+      prevPosts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            comments: post.comments.map((comment) => {
+              if (comment.id === commentId) {
+                const isLiked = !comment.isLiked;
+                return {
+                  ...comment,
+                  isLiked,
+                  likesCount: isLiked ? comment.likesCount + 1 : comment.likesCount - 1,
+                };
+              }
+              return comment;
+            }),
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const handleSharePost = (postId: string) => {
+    setFeedPosts((prevPosts) =>
+      prevPosts.map((post) => {
+        if (post.id === postId) {
+          const isShared = !post.isShared;
+          const newSharesCount = isShared ? post.sharesCount + 1 : post.sharesCount - 1;
+          
+          if (isShared) {
+            Alert.alert('Share Post', 'Post shared successfully! Link copied to clipboard.');
+          }
+          
+          return {
+            ...post,
+            isShared,
+            sharesCount: newSharesCount,
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const handleAddComment = (postId: string) => {
+    const text = commentInputs[postId]?.trim();
+    if (!text) return;
+
+    setFeedPosts((prevPosts) =>
+      prevPosts.map((post) => {
+        if (post.id === postId) {
+          const newComment: Comment = {
+            id: `${postId}_comment_${Date.now()}`,
+            authorName: 'Admin TAS',
+            avatar: require('../../assets/admin_profile.png'),
+            timestamp: 'Just now',
+            content: text,
+            likesCount: 0,
+            isLiked: false,
+          };
+          return {
+            ...post,
+            commentsCount: post.commentsCount + 1,
+            comments: [...post.comments, newComment],
+          };
+        }
+        return post;
+      })
+    );
+
+    setCommentInputs((prev) => ({
+      ...prev,
+      [postId]: '',
+    }));
+  };
+
+  const renderPostBody = (text: string) => {
+    const parts = text.split('**');
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return (
+          <Text key={index} style={styles.boldText}>
+            {part}
+          </Text>
+        );
+      }
+      return <Text key={index}>{part}</Text>;
+    });
+  };
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -162,138 +442,174 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSignOut, navigation })
           </View>
         </View>
 
-        {/* SECTION 2: SYSTEM UPDATE CARD (FEED 1) */}
-        <View style={styles.card}>
-          {/* Header Row */}
-          <View style={styles.feedHeaderRow}>
-            <TouchableOpacity 
-              onPress={() => navigation?.navigate('MemberProfile', {
-                name: 'Dr. Alistair Vance',
-                role: 'Chief Financial Auditor',
-                branch: 'London Branch',
-                tierLabel: 'Platinum Member',
-                memberId: 'TAS-9920-PL',
-                joinDate: 'Joined: Jan 2015',
-                email: 'a.vance@tas-governance.org',
-                fullIdCode: '9920-AV-TAS',
-                joinDateFull: 'January 14, 2015',
-                firm: 'Global Trust',
-                avatar: require('../../assets/admin_profile.png'),
-              })}
-              activeOpacity={0.8}
-              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-            >
-              <Image
-                source={require('../../assets/logo_icon.png')}
-                style={styles.feedAvatar}
-                resizeMode="contain"
-              />
-              <View style={styles.feedHeaderTexts}>
-                <Text style={styles.feedAuthorName}>Texcity Accountants Society</Text>
-                <Text style={styles.feedSubtitle}>Promoted • 10,240 members</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Post Text */}
-          <Text style={styles.postBodyText}>
-            We are pleased to announce the successful rollout of the <Text style={styles.boldText}>Q3 Security Patch</Text> for the national administration portal. All member accounts now benefit from enhanced biometric authentication layers. Ensure your regional office has updated their node.
-          </Text>
-
-          {/* Post Image with tag */}
-          <View style={styles.postImageContainer}>
-            <Image
-              source={require('../../assets/server_room_update.png')}
-              style={styles.postImage}
-              resizeMode="cover"
-            />
-            <View style={styles.imageOverlayTag}>
-              <Text style={styles.overlayTagText}>System Update 4.2.0</Text>
-            </View>
-          </View>
-
-          {/* Interaction Row */}
-          <View style={styles.interactionRow}>
-            <View style={styles.leftInteractionGroup}>
-              <TouchableOpacity style={styles.interactionButton}>
-                <ThumbsUp size={16} color="#64748b" />
-                <Text style={styles.interactionCount}>42</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.interactionButton}>
-                <MessageSquare size={16} color="#64748b" />
-                <Text style={styles.interactionCount}>12</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={styles.interactionButton}>
-              <Share2 size={16} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* SECTION 3: ELENA POST CARD (FEED 2) */}
-        <View style={styles.card}>
-          {/* Header Row */}
-          <View style={styles.feedHeaderRow}>
-            <TouchableOpacity 
-              onPress={() => navigation?.navigate('MemberProfile', {
-                name: 'Elena Rodriguez',
-                role: 'Partner',
-                branch: 'Rodriguez & Assoc.',
-                tierLabel: 'Senior Fellow',
-                memberId: 'TAS-4412-SR',
-                joinDate: 'Joined: Mar 2018',
-                email: 'elena.rodriguez@tas-governance.org',
-                fullIdCode: '4412-ER-TAS',
-                joinDateFull: 'March 10, 2018',
-                firm: 'Rodriguez & Assoc.',
-                avatar: require('../../assets/elena_profile.png'),
-              })}
-              activeOpacity={0.8}
-              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-            >
-              <Image
-                source={require('../../assets/elena_profile.png')}
-                style={styles.feedUserAvatar}
-              />
-              <View style={styles.feedHeaderTexts}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.feedAuthorName}>Elena Rodriguez, CPA</Text>
-                  <Text style={styles.timeTag}>2h ago</Text>
+        {/* DYNAMIC POST FEED */}
+        {feedPosts.map((post) => (
+          <View key={post.id} style={[styles.card, { paddingBottom: post.isCommentsExpanded ? 0 : 16, overflow: 'hidden' }]}>
+            {/* Header Row */}
+            <View style={styles.feedHeaderRow}>
+              <TouchableOpacity 
+                onPress={() => navigation?.navigate('MemberProfile', post.memberProfileParams)}
+                activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+              >
+                {post.id === '1' ? (
+                  <Image
+                    source={post.avatar}
+                    style={styles.feedAvatar}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Image
+                    source={post.avatar}
+                    style={styles.feedUserAvatar}
+                  />
+                )}
+                <View style={styles.feedHeaderTexts}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.feedAuthorName}>{post.authorName}</Text>
+                    {post.id !== '1' && <Text style={styles.timeTag}>2h ago</Text>}
+                  </View>
+                  <Text style={styles.feedSubtitle}>{post.subtitle}</Text>
                 </View>
-                <Text style={styles.feedSubtitle}>Regional Director at TAS South</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Post Text */}
-          <Text style={styles.postBodyText}>
-            Is anyone else observing a significant increase in automated reconciliation errors following the latest API update? We've had to revert to manual validation for three major enterprise audits this morning.
-          </Text>
-
-          {/* Quote Block */}
-          <View style={styles.quoteCard}>
-            <Text style={styles.quoteText}>
-              "Maintaining fiscal integrity requires human oversight, especially during transition phases."
-            </Text>
-          </View>
-
-          {/* Interaction Row */}
-          <View style={styles.interactionRow}>
-            <View style={styles.leftInteractionGroup}>
-              <TouchableOpacity style={styles.interactionButton}>
-                <ThumbsUp size={16} color="#4D831E" fill="#E8F5E9" />
-                <Text style={[styles.interactionCount, { color: '#4D831E' }]}>8</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.interactionButton}>
-                <MessageSquare size={16} color="#64748b" />
-                <Text style={styles.interactionCount}>24</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.interactionButton}>
-              <Bookmark size={16} color="#64748b" />
-            </TouchableOpacity>
+
+            {/* Post Text */}
+            <Text style={styles.postBodyText}>
+              {renderPostBody(post.postBody)}
+            </Text>
+
+            {/* Post Image with tag */}
+            {post.postImage && (
+              <View style={styles.postImageContainer}>
+                <Image
+                  source={post.postImage}
+                  style={styles.postImage}
+                  resizeMode="cover"
+                />
+                {post.imageTag && (
+                  <View style={styles.imageOverlayTag}>
+                    <Text style={styles.overlayTagText}>{post.imageTag}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Quote Block */}
+            {post.quoteText && (
+              <View style={styles.quoteCard}>
+                <Text style={styles.quoteText}>{post.quoteText}</Text>
+              </View>
+            )}
+
+            {/* Interaction Row */}
+            <View style={[styles.interactionRow, post.isCommentsExpanded && { borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 10 }]}>
+              <View style={styles.leftInteractionGroup}>
+                <TouchableOpacity 
+                  onPress={() => handleLikePost(post.id)}
+                  style={styles.interactionButton}
+                >
+                  <ThumbsUp 
+                    size={16} 
+                    color={post.isLiked ? "#4D831E" : "#64748b"} 
+                    fill={post.isLiked ? "#E8F5E9" : "none"} 
+                  />
+                  <Text style={[styles.interactionCount, post.isLiked && { color: '#4D831E' }]}>
+                    {post.likesCount}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleToggleComments(post.id)}
+                  style={styles.interactionButton}
+                >
+                  <MessageSquare 
+                    size={16} 
+                    color={post.isCommentsExpanded ? "#134074" : "#64748b"} 
+                  />
+                  <Text style={[styles.interactionCount, post.isCommentsExpanded && { color: '#134074' }]}>
+                    {post.commentsCount}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity 
+                onPress={() => handleSharePost(post.id)}
+                style={styles.interactionButton}
+              >
+                <Share2 
+                  size={16} 
+                  color={post.isShared ? "#134074" : "#64748b"} 
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Comments Section */}
+            {post.isCommentsExpanded && (
+              <View style={styles.commentsSection}>
+                <View style={styles.commentsHeader}>
+                  <Text style={styles.commentsHeaderTitle}>Comments</Text>
+                  <TouchableOpacity 
+                    onPress={() => handleToggleComments(post.id)}
+                    style={styles.closeCommentsButton}
+                  >
+                    <X size={16} color="#64748b" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Comments List */}
+                <View style={styles.commentsList}>
+                  {post.comments.map((comment) => (
+                    <View key={comment.id} style={styles.commentItem}>
+                      <UserAvatar name={comment.authorName} image={comment.avatar} size={32} />
+                      <View style={styles.commentContentWrapper}>
+                        <View style={styles.commentAuthorRow}>
+                          <Text style={styles.commentAuthorName}>{comment.authorName}</Text>
+                          <Text style={styles.commentTimestamp}>{comment.timestamp}</Text>
+                        </View>
+                        <Text style={styles.commentText}>{comment.content}</Text>
+                        
+                        {/* Comment Like Button */}
+                        <TouchableOpacity 
+                          onPress={() => handleCommentLike(post.id, comment.id)}
+                          style={styles.commentLikeButton}
+                        >
+                          <ThumbsUp 
+                            size={12} 
+                            color={comment.isLiked ? "#4D831E" : "#64748b"} 
+                            fill={comment.isLiked ? "#E8F5E9" : "none"} 
+                          />
+                          <Text style={[styles.commentLikeCount, comment.isLiked && { color: '#4D831E' }]}>
+                            {comment.likesCount}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Add Comment Input Bar */}
+                <View style={styles.commentInputRow}>
+                  <UserAvatar name="Admin TAS" image={require('../../assets/admin_profile.png')} size={32} />
+                  <View style={styles.commentInputContainer}>
+                    <TextInput
+                      placeholder="Add a comment..."
+                      placeholderTextColor="#94a3b8"
+                      value={commentInputs[post.id] || ''}
+                      onChangeText={(val) => setCommentInputs(prev => ({ ...prev, [post.id]: val }))}
+                      style={styles.commentTextInput}
+                      onSubmitEditing={() => handleAddComment(post.id)}
+                    />
+                    <TouchableOpacity 
+                      onPress={() => handleAddComment(post.id)}
+                      style={styles.commentSendButton}
+                    >
+                      <Send size={14} color="#134074" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
-        </View>
+        ))}
 
         {/* SECTION 4: UPCOMING SOCIETY EVENTS */}
         <View style={styles.card}>
@@ -657,5 +973,110 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     zIndex: 99,
+  },
+  commentsSection: {
+    backgroundColor: '#F8FAFC',
+    marginHorizontal: -16,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  commentsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  commentsHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  closeCommentsButton: {
+    padding: 2,
+  },
+  commentsList: {
+    marginBottom: 12,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  commentContentWrapper: {
+    flex: 1,
+    marginLeft: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  commentAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  commentAuthorName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0D3866',
+  },
+  commentTimestamp: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginLeft: 6,
+  },
+  commentText: {
+    fontSize: 12.5,
+    color: '#334D6E',
+    lineHeight: 16,
+  },
+  commentLikeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  commentLikeCount: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginBottom: 10,
+  },
+  commentInputContainer: {
+    flex: 1,
+    height: 36,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 18,
+    marginLeft: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  commentTextInput: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#334D6E',
+    paddingVertical: 0,
+  },
+  commentSendButton: {
+    padding: 4,
   },
 });

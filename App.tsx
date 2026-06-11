@@ -5,7 +5,7 @@ import { Platform, View, StyleSheet, Text, TouchableOpacity } from 'react-native
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home as HomeIcon, BarChart3, Users as UsersIcon, FileText } from 'lucide-react-native';
+import { Home as HomeIcon, BarChart3, Users as UsersIcon, Newspaper } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
 // Import Screens
@@ -76,8 +76,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               case 'Analytics':
                 return <BarChart3 size={22} color={color} />;
               case 'Posts':
-                return <FileText size={22} color={color} />;
-              case 'Messages':
+                return <Newspaper size={22} color={color} />;
+              case 'Connect':
                 return <UsersIcon size={22} color={color} />;
               case 'Directory':
                 return <DirectoryBookIcon color={color} />;
@@ -86,7 +86,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
             }
           };
 
-          const displayLabel = route.name === 'Messages' ? 'Connect' : (route.name === 'Posts' ? 'Post' : label);
+          const displayLabel = route.name === 'Connect' ? 'Connect' : (route.name === 'Posts' ? 'Post' : label);
 
           return (
             <TouchableOpacity
@@ -116,27 +116,30 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 const navStyles = StyleSheet.create({
   tabContainer: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
     zIndex: 100,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
-    borderRadius: 35,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     width: '100%',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   tabItem: {
     flexDirection: 'row',
@@ -193,9 +196,9 @@ function MainTabNavigator({ navigation }: any) {
         )}
       </Tab.Screen>
 
-      <Tab.Screen name="Messages">
+      <Tab.Screen name="Connect">
         {({ navigation }: any) => (
-          <MessagesScreen
+          <ConnectionsScreen
             navigation={navigation}
             onBack={() => navigation.navigate('Home')}
             onTabPress={(tab) => navigation.navigate(tab)}
@@ -241,13 +244,17 @@ function RootNavigator() {
           <ProfileScreen
             onBack={() => navigation.goBack()}
             onSignOut={() => navigation.replace('Login')}
-            onTabPress={(tab) => navigation.navigate('MainTabs', { screen: tab })}
           />
         )}
       </Stack.Screen>
       <Stack.Screen name="Connections">
         {({ navigation }) => (
           <ConnectionsScreen onBack={() => navigation.goBack()} />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Messages">
+        {({ navigation }) => (
+          <MessagesScreen onBack={() => navigation.goBack()} />
         )}
       </Stack.Screen>
       <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />

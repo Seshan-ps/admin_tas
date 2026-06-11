@@ -15,8 +15,7 @@ import {
 import {
   ArrowLeft,
   Search,
-  Download,
-  Mail,
+  MessageSquare,
   Plus,
   Calendar,
   MapPin,
@@ -249,6 +248,16 @@ export const DirectoryScreen: React.FC<DirectoryScreenProps> = ({
     }
   };
 
+  const handleMessageRedirect = (member: Member) => {
+    if (navigation) {
+      navigation.navigate('Messages');
+    } else if (onTabPress) {
+      onTabPress('Messages');
+    } else {
+      Alert.alert('Secure Message', `Initiating secured channel to ${member.name}`);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Header */}
@@ -399,18 +408,11 @@ export const DirectoryScreen: React.FC<DirectoryScreenProps> = ({
                   </TouchableOpacity>
 
                   <TouchableOpacity 
-                    style={styles.downloadBtn}
-                    onPress={() => Alert.alert('Download Credentials', `Downloading credential sheet for ${member.name}`)}
+                    style={styles.messageBtn}
+                    onPress={() => handleMessageRedirect(member)}
                   >
-                    <Download size={14} color="#0D3866" style={{ marginRight: 6 }} />
-                    <Text style={styles.downloadBtnText}>Download</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.mailBtn}
-                    onPress={() => Alert.alert('Secure Message', `Initiating secured channel to ${member.name}`)}
-                  >
-                    <Mail size={16} color="#0D3866" />
+                    <MessageSquare size={14} color="#0D3866" style={{ marginRight: 6 }} />
+                    <Text style={styles.messageBtnText}>MESSAGE</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -941,7 +943,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   viewProfileBtn: {
-    flex: 1.2,
+    flex: 1,
     backgroundColor: '#0D3866',
     borderRadius: 6,
     paddingVertical: 8,
@@ -952,7 +954,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  downloadBtn: {
+  messageBtn: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -963,18 +965,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  downloadBtnText: {
+  messageBtnText: {
     color: '#0D3866',
     fontSize: 11,
     fontWeight: '800',
-  },
-  mailBtn: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   paginationPanel: {
     alignItems: 'center',
@@ -1178,6 +1172,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  eventDetailText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
   },
   eventActionsRow: {
     flexDirection: 'row',

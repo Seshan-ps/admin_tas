@@ -25,6 +25,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import Svg, { Rect, Circle, Path } from 'react-native-svg';
+import { dbStore } from '../config/dbStore';
 
 interface CreateEventScreenProps {
   route?: any;
@@ -76,6 +77,15 @@ export const CreateEventScreen: React.FC<CreateEventScreenProps> = ({
     if (!title || !date) {
       Alert.alert('Incomplete Form', 'Please enter at least the Event Title and Date.');
       return;
+    }
+    if (!isEditing) {
+      dbStore.addEvent({
+        id: `e_${Date.now()}`,
+        title,
+        date,
+        location,
+        attendees: parseInt(capacity) || 0,
+      });
     }
     Alert.alert('Success', isEditing ? 'Event changes have been securely saved.' : 'Event draft has been securely created and saved.', [
       { text: 'OK', onPress: () => handleBack() }

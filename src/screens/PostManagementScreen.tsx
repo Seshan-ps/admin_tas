@@ -1,20 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   SafeAreaView,
   Alert,
   StyleSheet,
+  Platform,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  Image,
+  Linking,
 } from 'react-native';
 import {
   ArrowLeft,
   Search,
-  Lock,
   Globe,
+  Lock,
   Edit2,
   Trash2,
   Info,
@@ -22,9 +26,14 @@ import {
   X,
   ChevronDown,
   Eye,
-  ThumbsUp,
+  Heart,
   MessageSquare,
   Share2,
+  Home as HomeIcon,
+  BarChart3,
+  Newspaper,
+  Users,
+  ArrowUp,
   Bold,
   Italic,
   List,
@@ -32,12 +41,13 @@ import {
   FileText,
   Link,
   AtSign,
-  Home,
-  BarChart3,
-  Calendar,
-  Users,
+  Check,
+  ArrowRight,
 } from 'lucide-react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import { dbStore } from '../config/dbStore';
 import { supabase } from '../config/supabase';
+import * as ImagePicker from 'expo-image-picker';
 
 interface Post {
   id: string;
@@ -49,671 +59,1723 @@ interface Post {
   likes?: number;
   comments?: number;
   shares?: number;
-  lastSaved?: string;
   postedDate?: string;
-  tags?: string[];
+  lastSaved?: string;
+  image?: string;
+  document?: string;
 }
 
-interface PostManagementScreenProps {
+// Custom premium Directory Icon (Book with lens)
+const DirectoryBookIcon = ({ color }: { color: string }) => (
+  <View style={{ width: 22, height: 22, justifyContent: 'center', alignItems: 'center' }}>
+    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <Rect x="4" y="2" width="16" height="20" rx="3" fill="none" stroke={color} strokeWidth="2.5" />
+      <Path d="M8 2v20" stroke={color} strokeWidth="1.5" />
+      <Circle cx="14" cy="10" r="3" stroke={color} strokeWidth="2" fill="white" />
+      <Path d="M16.5 12.5l2.5 2.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  </View>
+);
+
+const handleLinkPressUrl = (url: string) => {
+  let cleanUrl = url;
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    cleanUrl = 'https://' + cleanUrl;
+  }
+  Linking.openURL(cleanUrl).catch(() => {
+    Alert.alert('Error', 'Cannot open link: ' + url);
+  });
+};
+
+const parseMarkdown = (text: string): React.ReactNode[] => {
+  if (!text) return [];
+  
+  // Combine matches: links [text](url), bold **text**, italic *text*, hashtag #tag
+  const regex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|(#[a-zA-Z0-9_]+)/g;
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+  
+  while ((match = regex.exec(text)) !== null) {
+    const matchIndex = match.index;
+    
+    if (matchIndex > lastIndex) {
+      result.push(
+        <Text key={`text-${keyIndex++}`}>
+          {text.substring(lastIndex, matchIndex)}
+        </Text>
+      );
+    }
+    
+    if (match[1] && match[2]) {
+      const linkText = match[1];
+      const linkUrl = match[2];
+      result.push(
+        <Text
+          key={`link-${keyIndex++}`}
+          style={{ color: '#0284C7', fontWeight: '700', textDecorationLine: 'underline' }}
+          onPress={() => handleLinkPressUrl(linkUrl)}
+        >
+          {linkText}
+        </Text>
+      );
+    } else if (match[3]) {
+      result.push(
+        <Text key={`bold-${keyIndex++}`} style={{ fontWeight: '800', color: '#0D3866' }}>
+          {match[3]}
+        </Text>
+      );
+    } else if (match[4]) {
+      result.push(
+        <Text key={`italic-${keyIndex++}`} style={{ fontStyle: 'italic' }}>
+          {match[4]}
+        </Text>
+      );
+    } else if (match[5]) {
+      result.push(
+        <Text key={`tag-${keyIndex++}`} style={{ color: '#134074', fontWeight: '700' }}>
+          {match[5]}
+        </Text>
+      );
+    }
+    
+    lastIndex = regex.lastIndex;
+  }
+  
+  if (lastIndex < text.length) {
+    result.push(
+      <Text key={`text-${keyIndex++}`}>
+        {text.substring(lastIndex)}
+      </Text>
+    );
+  }
+  
+  return result;
+};
+
+export const PostManagementScreen: React.FC<{
   onBack: () => void;
   onTabPress?: (tab: string) => void;
   navigation?: any;
-}
-
-export const PostManagementScreen: React.FC<PostManagementScreenProps> = ({
-  onBack,
-  onTabPress,
-  navigation,
-}) => {
-  // Mock initial posts
+}> = ({ onBack, onTabPress, navigation }) => {
+  // Mock initial posts based on UI mockups
   const [posts, setPosts] = useState<Post[]>([
     {
       id: '1',
       title: 'Annual Fiscal Review: 2023 Highlights',
-      body: 'Explore the key findings and growth metrics from the TAS accounting review this year...',
+      body: 'Explore the key findings and growth metrics from the TAS accounting...',
       status: 'published',
       isPrivate: false,
+      reach: '1.2k',
       likes: 342,
       comments: 89,
       shares: 12,
-      reach: '1.2k',
       postedDate: 'Oct 24, 2023',
-      tags: ['#TaxUpdate', '#Referral'],
     },
     {
       id: '2',
       title: 'Car service Annual',
-      body: 'Explore the key findings and growth metrics from the TAS accounting systems check...',
+      body: 'Explore the key findings and growth metrics from the TAS accounting...',
       status: 'published',
       isPrivate: false,
+      reach: '5.2k',
       likes: 142,
       comments: 90,
       shares: 12,
-      reach: '5.2k',
       postedDate: 'Oct 14, 2023',
-      tags: ['#Opportunities'],
     },
     {
       id: '3',
-      title: 'MSV Company',
-      body: 'Explore the key findings and growth metrics from the TAS accounting review panel...',
-      status: 'published',
-      isPrivate: false,
-      likes: 502,
-      comments: 91,
-      shares: 52,
-      reach: '5.9k',
-      postedDate: 'Oct 14, 2023',
-      tags: ['#Networking'],
-    },
-    {
-      id: '4',
       title: 'Internal Memo: Staff Accreditation',
-      body: 'Please review the attached document regarding the 2024 accreditation procedures...',
+      body: 'DRAFT: Please review the attached document regarding the 2024...',
       status: 'draft',
       isPrivate: true,
       lastSaved: '2 hours ago',
-      tags: ['#Referral'],
     },
     {
-      id: '5',
+      id: '4',
       title: 'Q3 Financial Guidelines Update',
-      body: 'This document outlines the revised reporting standards for all TAS registered members. Please ensure compliance with the updated audit trail requirements. The new measures focus on enhancing digital verification and institutional transparency across our multi-tier accounting frameworks.',
+      body: 'This document outlines the revised reporting standards for the third quarter, specifically addressing the...',
       status: 'draft',
       isPrivate: true,
       lastSaved: '12 hours ago',
-      tags: ['#TaxUpdate', '#Opportunities'],
     },
     {
-      id: '6',
+      id: '5',
       title: 'Tax Reform Analysis Brief',
-      body: 'A deep dive into the recent legislative changes regarding international tax credits. This analysis is intended for the administrative review board.',
+      body: 'A deep dive into the recent legislative changes regarding international tax credits...',
       status: 'draft',
       isPrivate: true,
       lastSaved: '12 days ago',
-      tags: ['#TaxUpdate'],
     },
   ]);
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'draft'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'published' | 'draft'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
   
-  // Editor States
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingPost, setEditingPost] = useState<Partial<Post> | null>(null);
-  const [editorTitle, setEditorTitle] = useState('');
-  const [editorBody, setEditorBody] = useState('');
-  const [editorTags, setEditorTags] = useState<string[]>([]);
-  const [editorIsPrivate, setEditorIsPrivate] = useState(false);
-
-  // Suggested tags list
+  // Create / Edit state
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [formTitle, setFormTitle] = useState('');
+  const [formBody, setFormBody] = useState('');
+  const [formStatus, setFormStatus] = useState<'published' | 'draft'>('published');
+  const [formIsPrivate, setFormIsPrivate] = useState(false);
   const suggestedTagsList = ['#Networking', '#TaxUpdate', '#Referral', '#Opportunities'];
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedDocument, setAttachedDocument] = useState<string | null>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
-  // Fetch posts from Supabase
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 300);
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  // Sync with dbStore reactively
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        if (data && data.length > 0) {
-          const formatted = data.map((item: any) => ({
-            id: item.id,
-            title: item.content.split('\n')[0] || 'Untitled Post',
-            body: item.content,
-            status: item.status,
-            isPrivate: item.type !== 'regular',
-            tags: item.tags || [],
-            likes: item.interaction_count || 0,
-            comments: 0,
-            shares: 0,
-            reach: `${item.reach_count || 0}`,
-            postedDate: new Date(item.created_at).toLocaleDateString(),
-          }));
-          setPosts(formatted);
-        }
-      } catch (e) {
-        // Fallback to local mockup
-      }
-    };
-    fetchPosts();
-  }, []);
+    dbStore.setPostsCount(posts.length);
+  }, [posts]);
 
-  const handleDeletePost = async (id: string) => {
-    Alert.alert('Delete Post', 'Are you sure you want to delete this post permanently?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const { error } = await supabase.from('posts').delete().eq('id', id);
-            if (error) throw error;
-          } catch (e) {
-            // fallback
-          }
-          setPosts(posts.filter((p) => p.id !== id));
-        },
-      },
-    ]);
-  };
-
-  const handleEditPress = (post: Post) => {
-    setEditingPost(post);
-    setEditorTitle(post.title);
-    setEditorBody(post.body);
-    setEditorTags(post.tags || []);
-    setEditorIsPrivate(post.isPrivate);
-    setIsEditing(true);
-  };
-
-  const handleCreatePress = () => {
-    setEditingPost({});
-    setEditorTitle('');
-    setEditorBody('');
-    setEditorTags([]);
-    setEditorIsPrivate(false);
-    setIsEditing(true);
-  };
-
-  const handleSaveDraft = async () => {
-    if (!editorTitle) {
-      Alert.alert('Error', 'Please enter a post title.');
-      return;
-    }
-    const updatedPosts = [...posts];
-    const postPayload = {
-      content: `${editorTitle}\n${editorBody}`,
-      status: 'draft',
-      type: editorIsPrivate ? 'promoted' : 'regular',
-      tags: editorTags,
-    };
-
-    if (editingPost?.id) {
-      // Edit existing
-      try {
-        const { error } = await supabase.from('posts').update(postPayload).eq('id', editingPost.id);
-        if (error) throw error;
-      } catch (e) {}
+  // Handle Search and Filter
+  const filteredPosts = posts.filter((post) => {
+    const matchesSearch =
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.body.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesTab =
+      activeTab === 'all' || post.status === activeTab;
       
-      const idx = updatedPosts.findIndex((p) => p.id === editingPost.id);
-      if (idx !== -1) {
-        updatedPosts[idx] = {
-          ...updatedPosts[idx],
-          title: editorTitle,
-          body: editorBody,
-          tags: editorTags,
-          isPrivate: editorIsPrivate,
-          status: 'draft',
-          lastSaved: 'Just now',
-        };
-      }
-    } else {
-      // Add new draft
-      let newId = Date.now().toString();
-      try {
-        const { data, error } = await supabase.from('posts').insert([postPayload]).select();
-        if (error) throw error;
-        if (data && data[0]) newId = data[0].id;
-      } catch (e) {}
+    return matchesSearch && matchesTab;
+  });
 
-      const newPost: Post = {
-        id: newId,
-        title: editorTitle,
-        body: editorBody,
-        status: 'draft',
-        isPrivate: editorIsPrivate,
-        lastSaved: 'Just now',
-        tags: editorTags,
-      };
-      updatedPosts.unshift(newPost);
-    }
-    setPosts(updatedPosts);
-    setIsEditing(false);
-    Alert.alert('Draft Saved', 'Your post draft has been updated successfully.');
+  // Actions
+  const handleCreateNew = () => {
+    setEditingPost(null);
+    setFormTitle('');
+    setFormBody('');
+    setFormStatus('published');
+    setFormIsPrivate(false);
+    setSelectedTags([]);
+    setAttachedImage(null);
+    setAttachedDocument(null);
+    setIsFormVisible(true);
   };
 
-  const handlePublishPost = async () => {
-    if (!editorTitle || !editorBody) {
-      Alert.alert('Error', 'Please fill in both the title and body content.');
+  const handleEdit = (post: Post) => {
+    setEditingPost(post);
+    setFormTitle(post.title);
+    setFormBody(post.body);
+    setFormStatus(post.status);
+    setFormIsPrivate(post.isPrivate);
+    setAttachedImage(post.image || null);
+    setAttachedDocument(post.document || null);
+    // Auto-select tags if they exist in title/body
+    const tags = suggestedTagsList.filter(tag => 
+      post.body.toLowerCase().includes(tag.replace('#', '').toLowerCase()) || 
+      post.title.toLowerCase().includes(tag.replace('#', '').toLowerCase())
+    );
+    setSelectedTags(tags);
+    setIsFormVisible(true);
+  };
+
+  const handleBold = () => {
+    const start = selection.start;
+    const end = selection.end;
+    const selectedText = formBody.slice(start, end);
+    const newText = formBody.slice(0, start) + `**${selectedText || 'bold'}**` + formBody.slice(end);
+    setFormBody(newText);
+  };
+
+  const handleItalic = () => {
+    const start = selection.start;
+    const end = selection.end;
+    const selectedText = formBody.slice(start, end);
+    const newText = formBody.slice(0, start) + `*${selectedText || 'italic'}*` + formBody.slice(end);
+    setFormBody(newText);
+  };
+
+  const handleList = () => {
+    const start = selection.start;
+    const end = selection.end;
+    const selectedText = formBody.slice(start, end);
+    const newText = formBody.slice(0, start) + `\n- ${selectedText || 'item'}` + formBody.slice(end);
+    setFormBody(newText);
+  };
+
+  const handlePhotoPress = () => {
+    Alert.alert(
+      'Select Photo',
+      'Choose an image source:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Choose from Gallery / Local Device', 
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Sorry, we need gallery permissions to attach photos!');
+                return;
+              }
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 1,
+              });
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                setAttachedImage(result.assets[0].uri);
+              }
+            } catch (err) {
+              Alert.alert('Error', 'Failed to pick image from device.');
+            }
+          }
+        },
+        { 
+          text: 'Use Mock: Annual Conference', 
+          onPress: () => setAttachedImage('annual_conference.png') 
+        },
+        { 
+          text: 'Use Mock: Server Room Update', 
+          onPress: () => setAttachedImage('server_room_update.png') 
+        },
+        {
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => setAttachedImage(null)
+        }
+      ]
+    );
+  };
+
+  const handleDocPress = () => {
+    Alert.alert(
+      'Select Document',
+      'Choose a file to attach:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Q3 Financial Guidelines.pdf', 
+          onPress: () => setAttachedDocument('Q3 Financial Guidelines.pdf') 
+        },
+        { 
+          text: 'Annual Audit Report.pdf', 
+          onPress: () => setAttachedDocument('Annual Audit Report.pdf') 
+        },
+        {
+          text: 'Remove Document',
+          style: 'destructive',
+          onPress: () => setAttachedDocument(null)
+        }
+      ]
+    );
+  };
+
+  const handleLinkPress = () => {
+    if (Platform.OS === 'web') {
+      const url = window.prompt('Enter URL:');
+      if (url) {
+        const start = selection.start;
+        const end = selection.end;
+        const selectedText = formBody.slice(start, end) || 'link';
+        const newText = formBody.slice(0, start) + `[${selectedText}](${url})` + formBody.slice(end);
+        setFormBody(newText);
+      }
+    } else {
+      const start = selection.start;
+      const end = selection.end;
+      const selectedText = formBody.slice(start, end) || 'link';
+      const newText = formBody.slice(0, start) + `[${selectedText}](https://example.com)` + formBody.slice(end);
+      setFormBody(newText);
+    }
+  };
+
+  const handleMentionPress = () => {
+    const start = selection.start;
+    const end = selection.end;
+    const selectedText = formBody.slice(start, end);
+    const newText = formBody.slice(0, start) + `@Admin ${selectedText}` + formBody.slice(end);
+    setFormBody(newText);
+  };
+
+  const handleToggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter(t => t !== tag));
+      if (formBody.includes(tag)) {
+        setFormBody(formBody.replace(new RegExp(`\\s*${tag}`), '').trim());
+      }
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+      if (!formBody.includes(tag)) {
+        setFormBody(prev => `${prev} ${tag}`.trim());
+      }
+    }
+  };
+
+  const handleCustomTag = () => {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Add Custom Tag',
+        'Enter your custom tag:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Add',
+            onPress: (text?: string) => {
+              if (text && text.trim()) {
+                let formattedTag = text.trim();
+                if (!formattedTag.startsWith('#')) {
+                  formattedTag = `#${formattedTag}`;
+                }
+                handleToggleTag(formattedTag);
+              }
+            },
+          },
+        ]
+      );
+    } else if (Platform.OS === 'web') {
+      const text = window.prompt('Enter your custom tag:');
+      if (text && text.trim()) {
+        let formattedTag = text.trim();
+        if (!formattedTag.startsWith('#')) {
+          formattedTag = `#${formattedTag}`;
+        }
+        handleToggleTag(formattedTag);
+      }
+    } else {
+      Alert.alert(
+        'Custom Tag',
+        'Custom tags can be typed directly into the editor body starting with a # symbol.'
+      );
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (Platform.OS === 'web') {
+      const confirmDelete = window.confirm('Are you sure you want to delete this post?');
+      if (confirmDelete) {
+        setPosts(posts.filter((p) => p.id !== id));
+      }
+    } else {
+      Alert.alert('Confirm Delete', 'Are you sure you want to delete this post?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setPosts(posts.filter((p) => p.id !== id));
+          },
+        },
+      ]);
+    }
+  };
+
+  const handleSaveForm = (overrideStatus?: 'published' | 'draft') => {
+    if (!formTitle.trim() || !formBody.trim()) {
+      Alert.alert('Incomplete Form', 'Please enter both title and body content.');
       return;
     }
-    const updatedPosts = [...posts];
-    const postPayload = {
-      content: `${editorTitle}\n${editorBody}`,
-      status: 'published',
-      type: editorIsPrivate ? 'promoted' : 'regular',
-      tags: editorTags,
-      reach_count: 1000,
-    };
 
-    if (editingPost?.id) {
-      // Edit existing and publish
-      try {
-        const { error } = await supabase.from('posts').update(postPayload).eq('id', editingPost.id);
-        if (error) throw error;
-      } catch (e) {}
+    const isAlreadyPublished = editingPost && editingPost.status === 'published';
+    const finalStatus = isAlreadyPublished ? 'published' : (overrideStatus || formStatus);
 
-      const idx = updatedPosts.findIndex((p) => p.id === editingPost.id);
-      if (idx !== -1) {
-        updatedPosts[idx] = {
-          ...updatedPosts[idx],
-          title: editorTitle,
-          body: editorBody,
-          tags: editorTags,
-          isPrivate: editorIsPrivate,
-          status: 'published',
-          postedDate: 'Today',
-          likes: updatedPosts[idx].likes || 0,
-          comments: updatedPosts[idx].comments || 0,
-          shares: updatedPosts[idx].shares || 0,
-          reach: updatedPosts[idx].reach || '1.0k',
-        };
-      }
-    } else {
-      // Create new published post
-      let newId = Date.now().toString();
-      try {
-        const { data, error } = await supabase.from('posts').insert([postPayload]).select();
-        if (error) throw error;
-        if (data && data[0]) newId = data[0].id;
-      } catch (e) {}
-
-      const newPost: Post = {
-        id: newId,
-        title: editorTitle,
-        body: editorBody,
-        status: 'published',
-        isPrivate: editorIsPrivate,
-        postedDate: 'Today',
-        likes: 0,
-        comments: 0,
-        shares: 0,
-        reach: '1.0k',
-        tags: editorTags,
-      };
-      updatedPosts.unshift(newPost);
-    }
-    setPosts(updatedPosts);
-    setIsEditing(false);
-    Alert.alert('Success', 'Your post has been published successfully.');
-  };
-
-  const toggleTag = (tag: string) => {
-    if (editorTags.includes(tag)) {
-      setEditorTags(editorTags.filter((t) => t !== tag));
-    } else {
-      setEditorTags([...editorTags, tag]);
-    }
-  };
-
-  const filteredPosts = posts
-    .filter((post) => {
-      if (activeFilter === 'published') return post.status === 'published';
-      if (activeFilter === 'draft') return post.status === 'draft';
-      return true;
-    })
-    .filter((post) => {
-      return (
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.body.toLowerCase().includes(searchQuery.toLowerCase())
+    if (editingPost) {
+      // Edit mode
+      setPosts(
+        posts.map((p) =>
+          p.id === editingPost.id
+            ? {
+                ...p,
+                title: formTitle,
+                body: formBody,
+                status: finalStatus,
+                isPrivate: formIsPrivate,
+                image: attachedImage || undefined,
+                document: attachedDocument || undefined,
+                lastSaved: finalStatus === 'draft' ? 'Just now' : undefined,
+              }
+            : p
+        )
       );
-    });
+    } else {
+      // Create mode
+      const newPost: Post = {
+        id: `post_${Date.now()}`,
+        title: formTitle,
+        body: formBody,
+        status: finalStatus,
+        isPrivate: formIsPrivate,
+        image: attachedImage || undefined,
+        document: attachedDocument || undefined,
+        reach: finalStatus === 'published' ? '0' : undefined,
+        likes: finalStatus === 'published' ? 0 : undefined,
+        comments: finalStatus === 'published' ? 0 : undefined,
+        shares: finalStatus === 'published' ? 0 : undefined,
+        postedDate: finalStatus === 'published' ? 'Today' : undefined,
+        lastSaved: finalStatus === 'draft' ? 'Just now' : undefined,
+      };
+      setPosts([newPost, ...posts]);
+    }
 
-  // RENDER 1: EDITOR PAGE
-  const renderEditor = () => {
-    return (
-      <SafeAreaView className="flex-1 bg-white">
-        {/* Editor Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 bg-[#E9F0FA] border-b border-blue-100">
-          <TouchableOpacity onPress={() => setIsEditing(false)} className="p-1.5 -ml-1">
-            <X size={22} color="#134074" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-[#134074]">Edit Post</Text>
-          <View style={{ width: 24 }} />
+    // Reset attachments
+    setAttachedImage(null);
+    setAttachedDocument(null);
+
+    // If published, show success screen
+    if (finalStatus === 'published') {
+      setShowSuccessScreen(true);
+    } else {
+      setIsFormVisible(false);
+      Alert.alert('Success', 'Draft saved successfully.');
+    }
+  };
+
+  const handleInfoPress = (post: Post) => {
+    Alert.alert(
+      'Post Details',
+      `Title: ${post.title}\nStatus: ${post.status.toUpperCase()}\nReach: ${post.reach || 'N/A'}\nLikes: ${post.likes ?? 'N/A'}\nComments: ${post.comments ?? 'N/A'}`
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Conditionally Render Header based on State */}
+      {showSuccessScreen ? (
+        <View style={styles.formHeader}>
+          <View style={{ width: 44 }} />
+          <Text style={styles.formHeaderTitle}>Posting</Text>
+          <View style={{ width: 44 }} />
         </View>
+      ) : !isFormVisible ? (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <ArrowLeft size={22} color="#0D3866" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Post Management</Text>
+          <View style={{ width: 44 }} />
+        </View>
+      ) : (
+        <View style={styles.formHeader}>
+          <TouchableOpacity onPress={() => setIsFormVisible(false)} style={styles.formCloseButton}>
+            <X size={24} color="#0D3866" />
+          </TouchableOpacity>
+          <Text style={styles.formHeaderTitle}>{editingPost ? 'Edit Post' : 'Create Post'}</Text>
+          <View style={{ width: 44 }} />
+        </View>
+      )}
 
-        <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={true}>
-          {/* Profile Header */}
-          <View className="flex-row items-center mb-5">
+      {showSuccessScreen ? (
+        /* Success Screen */
+        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.successContent}>
+          <View style={styles.successCard}>
+            {/* Checked Square Icon */}
+            <View style={styles.successIconWrapper}>
+              <View style={styles.successIconCircle}>
+                <Check size={28} color="white" />
+              </View>
+            </View>
+
+            <Text style={styles.successTitle}>Posted Successfully</Text>
+            <Text style={styles.successSubtitle}>
+              Your update is now live on the society network. All verified members can now view your contribution.
+            </Text>
+
+            {/* Info Box */}
+            <View style={styles.successInfoBox}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>STATUS</Text>
+                <View style={styles.liveBadge}>
+                  <Check size={10} color="#3F6212" style={{ marginRight: 4 }} />
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
+                </View>
+              </View>
+              <View style={styles.infoDivider} />
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>TIME</Text>
+                <Text style={styles.infoValue}>{new Date().toUTCString().slice(17, 25)} UTC</Text>
+              </View>
+              <View style={styles.infoDivider} />
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>NETWORK</Text>
+                <Text style={styles.infoValue}>Texcity Secure Cluster</Text>
+              </View>
+            </View>
+
+            {/* Verified Badge */}
+            <View style={styles.verifiedBadgeContainer}>
+              <Lock size={12} color="#1E40AF" style={{ marginRight: 6 }} />
+              <Text style={styles.verifiedBadgeText}>Secure Session Verified</Text>
+            </View>
+
+            {/* Done Button */}
+            <TouchableOpacity 
+              style={styles.doneButton} 
+              onPress={() => {
+                setShowSuccessScreen(false);
+                setIsFormVisible(false);
+              }}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+              <ArrowRight size={18} color="white" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      ) : isFormVisible ? (
+        /* Edit / Create Form View */
+        <ScrollView 
+          style={styles.scrollContainer} 
+          contentContainerStyle={styles.formContent}
+          showsVerticalScrollIndicator={true}
+        >
+          {/* Author Block */}
+          <View style={styles.authorRow}>
             <Image
               source={require('../../assets/admin_profile.png')}
-              className="w-10 h-10 rounded-full border border-slate-100"
+              style={styles.authorAvatar}
             />
-            <View className="ml-3">
-              <Text className="font-bold text-slate-800 text-[15px]">Admin TAS</Text>
-              {/* Dropdown status selector */}
+            <View style={styles.authorInfo}>
+              <Text style={styles.authorName}>Admin TAS</Text>
               <TouchableOpacity 
-                onPress={() => setEditorIsPrivate(!editorIsPrivate)}
-                className="flex-row items-center bg-slate-100 rounded-md px-2 py-0.5 mt-0.5 space-x-1 w-20"
+                style={styles.privacyPill} 
+                onPress={() => setFormIsPrivate(!formIsPrivate)}
               >
-                {editorIsPrivate ? <Lock size={11} color="#64748b" /> : <Globe size={11} color="#64748b" />}
-                <Text className="text-[11px] font-bold text-slate-500">
-                  {editorIsPrivate ? 'Private' : 'Public'}
+                {formIsPrivate ? (
+                  <Lock size={12} color="#1E3A8A" style={{ marginRight: 4 }} />
+                ) : (
+                  <Globe size={12} color="#1E3A8A" style={{ marginRight: 4 }} />
+                )}
+                <Text style={styles.privacyText}>
+                  {formIsPrivate ? 'Private' : 'Public'}
                 </Text>
-                <ChevronDown size={11} color="#64748b" />
+                <ChevronDown size={12} color="#1E3A8A" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Form Content area */}
-          <View className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 min-h-[300px] mb-5">
+          {/* Editor Canvas Card */}
+          <View style={styles.editorCard}>
             <TextInput
-              value={editorTitle}
-              onChangeText={setEditorTitle}
-              placeholder="Enter post title..."
-              placeholderTextColor="#94a3b8"
-              className="text-slate-800 font-bold text-[17px] pb-3 border-b border-slate-200/60 mb-3"
+              style={styles.editorTitleInput}
+              value={formTitle}
+              onChangeText={setFormTitle}
+              placeholder="Title of your post..."
+              placeholderTextColor="#64748B"
             />
+            
             <TextInput
-              value={editorBody}
-              onChangeText={setEditorBody}
-              placeholder="This document outlines the revised reporting standards for all TAS registered members..."
-              placeholderTextColor="#94a3b8"
+              style={styles.editorBodyInput}
+              value={formBody}
+              onChangeText={setFormBody}
+              placeholder={editingPost ? "What do you want to talk about?" : "Share a update, referral, or new opportunity..."}
+              placeholderTextColor="#64748B"
               multiline
-              className="text-slate-700 text-[14px] leading-relaxed flex-1 min-h-[180px]"
               textAlignVertical="top"
+              onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
             />
 
-            {/* Suggested Tags section */}
-            <View className="mt-4 pt-3 border-t border-slate-200/60">
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">
-                Suggested Tags
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {suggestedTagsList.map((tag) => {
-                  const isSelected = editorTags.includes(tag);
-                  return (
-                    <TouchableOpacity
-                      key={tag}
-                      onPress={() => toggleTag(tag)}
-                      className={`rounded-full px-3 py-1 border ${
-                        isSelected 
-                          ? 'bg-blue-100 border-blue-200' 
-                          : 'bg-white border-slate-200'
-                      }`}
-                    >
-                      <Text className={`text-[11px] font-semibold ${isSelected ? 'text-[#134074]' : 'text-slate-500'}`}>
-                        {tag}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity className="bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
-                  <Text className="text-[#134074] text-[11px] font-bold">+ Custom</Text>
+            {/* Attached Image Preview inside the Card */}
+            {attachedImage && (
+              <View style={styles.attachedImageContainer}>
+                <Image 
+                  source={
+                    attachedImage === 'annual_conference.png'
+                      ? require('../../assets/annual_conference.png')
+                      : require('../../assets/server_room_update.png')
+                  } 
+                  style={styles.attachedImagePreview} 
+                  resizeMode="cover"
+                />
+                <TouchableOpacity 
+                  style={styles.removeImageBtn} 
+                  onPress={() => setAttachedImage(null)}
+                >
+                  <X size={16} color="white" />
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
 
-            {/* Character Counter */}
-            <View className="flex-row justify-end items-center mt-4 space-x-1.5">
-              <View className="w-5 h-5 rounded-full border-2 border-green-600 items-center justify-center">
-                <Text className="text-[9px] font-bold text-green-600">0</Text>
+            {/* Attached Document Preview inside the Card */}
+            {attachedDocument && (
+              <View style={styles.attachedDocContainer}>
+                <FileText size={16} color="#0D3866" style={{ marginRight: 6 }} />
+                <Text style={styles.attachedDocText}>{attachedDocument}</Text>
+                <TouchableOpacity 
+                  style={styles.removeDocBtn} 
+                  onPress={() => setAttachedDocument(null)}
+                >
+                  <X size={14} color="#64748B" />
+                </TouchableOpacity>
               </View>
-              <Text className="text-[10px] text-slate-400 font-semibold">/ 2000</Text>
+            )}
+
+            {/* Suggested Tags inside the card */}
+            <View style={styles.editorFooterRow}>
+              <View style={styles.tagsSection}>
+                <Text style={styles.suggestedTagsLabel}>SUGGESTED TAGS</Text>
+                <View style={styles.tagsContainer}>
+                  {suggestedTagsList.map((tag) => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[styles.tagPill, isSelected && styles.tagPillSelected]}
+                        onPress={() => handleToggleTag(tag)}
+                      >
+                        <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>
+                          {tag}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity style={styles.customTagBtn} onPress={handleCustomTag}>
+                    <Text style={styles.customTagText}>+ Custom</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Character Counter Circular Indicator */}
+              <View style={styles.charCounterContainer}>
+                <View style={styles.progressCircle}>
+                  <Text style={styles.progressText}>{formBody.length}</Text>
+                </View>
+                <Text style={styles.maxCharText}> / 2000</Text>
+              </View>
             </View>
           </View>
 
-          {/* Formatting bar shortcuts */}
-          <View className="flex-row justify-between items-center border-y border-slate-100 py-3 mb-6">
-            <View className="flex-row space-x-5 px-1">
-              <TouchableOpacity><Bold size={18} color="#64748b" /></TouchableOpacity>
-              <TouchableOpacity><Italic size={18} color="#64748b" /></TouchableOpacity>
-              <TouchableOpacity><List size={18} color="#64748b" /></TouchableOpacity>
+          {/* Formatting Toolbar */}
+          <View style={styles.toolbarDivider} />
+          <View style={styles.toolbarContainer}>
+            <View style={styles.toolbarFormatGroup}>
+              <TouchableOpacity style={styles.toolbarFormatButton} onPress={handleBold}>
+                <Bold size={20} color="#134074" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toolbarFormatButton} onPress={handleItalic}>
+                <Italic size={20} color="#134074" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toolbarFormatButton} onPress={handleList}>
+                <List size={20} color="#134074" />
+              </TouchableOpacity>
+              <View style={styles.toolbarVerticalDivider} />
             </View>
-            <View className="h-6 w-[1px] bg-slate-200" />
-            <View className="flex-row space-x-5 px-1">
-              <TouchableOpacity className="items-center"><ImageIcon size={18} color="#64748b" /><Text className="text-[8px] text-slate-400 font-bold mt-0.5">Photo</Text></TouchableOpacity>
-              <TouchableOpacity className="items-center"><FileText size={18} color="#64748b" /><Text className="text-[8px] text-slate-400 font-bold mt-0.5">Document</Text></TouchableOpacity>
-              <TouchableOpacity className="items-center"><Link size={18} color="#64748b" /><Text className="text-[8px] text-slate-400 font-bold mt-0.5">Link</Text></TouchableOpacity>
-              <TouchableOpacity className="items-center"><AtSign size={18} color="#64748b" /><Text className="text-[8px] text-slate-400 font-bold mt-0.5">Mention</Text></TouchableOpacity>
+
+            <View style={styles.toolbarAttachmentGroup}>
+              <TouchableOpacity style={styles.toolbarAttachmentButton} onPress={handlePhotoPress}>
+                <ImageIcon size={20} color="#134074" />
+                <Text style={styles.toolbarAttachmentLabel}>Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toolbarAttachmentButton} onPress={handleDocPress}>
+                <FileText size={20} color="#134074" />
+                <Text style={styles.toolbarAttachmentLabel}>Document</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toolbarAttachmentButton} onPress={handleLinkPress}>
+                <Link size={20} color="#134074" />
+                <Text style={styles.toolbarAttachmentLabel}>Link</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toolbarAttachmentButton} onPress={handleMentionPress}>
+                <AtSign size={20} color="#134074" />
+                <Text style={styles.toolbarAttachmentLabel}>Mention</Text>
+              </TouchableOpacity>
             </View>
           </View>
+          <View style={styles.toolbarDivider} />
 
-          {/* Action buttons */}
-          <View className="flex-row items-center justify-end space-x-5 mb-10">
-            <TouchableOpacity onPress={handleSaveDraft}>
-              <Text className="text-[#134074] font-bold text-sm">Save</Text>
-            </TouchableOpacity>
+          {/* Save and Post Actions */}
+          <View style={styles.actionButtonRow}>
+            {(!editingPost || editingPost.status !== 'published') && (
+              <TouchableOpacity 
+                style={styles.saveTextButton} 
+                onPress={() => handleSaveForm('draft')}
+              >
+                <Text style={styles.saveTextButtonText}>Save</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity 
-              onPress={handlePublishPost}
-              className="bg-[#134074] px-6 py-2.5 rounded-lg active:bg-[#0f325c]"
+              style={styles.postGradientButton} 
+              onPress={() => handleSaveForm('published')}
             >
-              <Text className="text-white font-bold text-sm">Post</Text>
+              <Text style={styles.postGradientButtonText}>
+                {editingPost && editingPost.status === 'published' ? 'Update' : 'Post'}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </SafeAreaView>
-    );
-  };
-
-  // RENDER 2: FEED MAIN LIST PAGE
-  const renderFeedList = () => {
-    return (
-      <SafeAreaView className="flex-1 bg-white relative">
-        {/* Top Header */}
-        <View className="flex-row items-center px-4 py-3 bg-[#E9F0FA] border-b border-blue-100 z-20">
-          <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3">
-            <ArrowLeft size={22} color="#134074" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-[#134074]">Post Management</Text>
-        </View>
-
-        <ScrollView className="flex-1 bg-[#F8FAFC]" contentContainerStyle={{ paddingBottom: 110 }}>
-          {/* Search bar */}
-          <View className="bg-white border border-slate-200 rounded-lg m-3 px-3 py-2 flex-row items-center">
-            <Search size={18} color="#94a3b8" className="mr-2" />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search posts by title, keyword, or author..."
-              placeholderTextColor="#94a3b8"
-              className="flex-1 text-slate-800 text-[14px] p-0"
-            />
+      ) : (
+        /* List View */
+        <View style={{ flex: 1 }}>
+          {/* Search Bar container */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBar}>
+              <Search size={18} color="#94a3b8" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search posts by title, keyword, or author..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
           </View>
 
-          {/* Filter Tags row */}
-          <View className="flex-row px-3 mb-3 justify-between">
-            <TouchableOpacity
-              onPress={() => setActiveFilter('all')}
-              className={`flex-1 rounded-lg py-2 border items-center mr-2 ${
-                activeFilter === 'all' 
-                  ? 'bg-[#134074] border-[#134074]' 
-                  : 'bg-white border-slate-200'
-              }`}
-            >
-              <Text className={`text-xs font-bold ${activeFilter === 'all' ? 'text-white' : 'text-slate-500'}`}>
-                All Posts
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setActiveFilter('published')}
-              className={`flex-1 rounded-lg py-2 border items-center mr-2 ${
-                activeFilter === 'published' 
-                  ? 'bg-[#134074] border-[#134074]' 
-                  : 'bg-white border-slate-200'
-              }`}
-            >
-              <Text className={`text-xs font-bold ${activeFilter === 'published' ? 'text-white' : 'text-slate-500'}`}>
-                Published
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setActiveFilter('draft')}
-              className={`flex-1 rounded-lg py-2 border items-center ${
-                activeFilter === 'draft' 
-                  ? 'bg-[#134074] border-[#134074]' 
-                  : 'bg-white border-slate-200'
-              }`}
-            >
-              <Text className={`text-xs font-bold ${activeFilter === 'draft' ? 'text-white' : 'text-slate-500'}`}>
-                Drafts
-              </Text>
-            </TouchableOpacity>
+          {/* Tab Filter switcher */}
+          <View style={styles.tabSwitcherRow}>
+            {(['all', 'published', 'draft'] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[styles.tabButtonText, activeTab === tab && styles.tabButtonTextActive]}>
+                  {tab === 'all' ? 'All Posts' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Post Engagement Summary Block (Only visible on All Posts / Published) */}
-          {activeFilter !== 'draft' && (
-            <View className="bg-[#134074] m-3 p-5 rounded-2xl shadow-sm relative overflow-hidden">
-              <Text className="text-white font-bold text-base mb-1">Post Engagement Summary</Text>
-              <Text className="text-blue-100/80 text-[13px] leading-relaxed mb-4">
-                Overall post reach has increased by 14.5% this month. Your most active demographic is 'Senior Accountants' based in metropolitan areas.
-              </Text>
-              <View className="flex-row space-x-8">
-                <View>
-                  <Text className="text-[#A4E06E] font-extrabold text-xl">4.8k</Text>
-                  <Text className="text-blue-100/60 text-[10px] font-bold uppercase mt-0.5">Total Reach</Text>
-                </View>
-                <View>
-                  <Text className="text-[#A4E06E] font-extrabold text-xl">286</Text>
-                  <Text className="text-blue-100/60 text-[10px] font-bold uppercase mt-0.5">New Interactions</Text>
+          <ScrollView
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Engagement Summary Card */}
+            {activeTab !== 'draft' && (
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Post Engagement Summary</Text>
+                <Text style={styles.summaryText}>
+                  Overall post reach has increased by 14.5% this month. Your most active demographic is 'Senior Accountants' based in metropolitan areas.
+                </Text>
+                <View style={styles.summaryStatsRow}>
+                  <View style={styles.summaryStatBox}>
+                    <Text style={styles.summaryStatVal}>4.8k</Text>
+                    <Text style={styles.summaryStatLabel}>Total Reach</Text>
+                  </View>
+                  <View style={styles.summaryVerticalDivider} />
+                  <View style={styles.summaryStatBox}>
+                    <Text style={styles.summaryStatVal}>286</Text>
+                    <Text style={styles.summaryStatLabel}>New Interactions</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Cards List */}
-          <View className="px-3">
+            {/* Posts Cards list */}
             {filteredPosts.map((post) => {
-              const isDraft = post.status === 'draft';
+              const isPublished = post.status === 'published';
               return (
-                <View key={post.id} className="bg-white border border-slate-150 rounded-2xl p-4 mb-3 shadow-sm">
-                  {/* Status header */}
-                  <View className="flex-row justify-between items-center mb-3">
-                    <View className={`rounded px-2.5 py-0.5 ${isDraft ? 'bg-[#D2E4F9]' : 'bg-[#A4E06E]'}`}>
-                      <Text className={`text-[10px] font-bold uppercase tracking-wider ${isDraft ? 'text-[#134074]' : 'text-[#2B5713]'}`}>
-                        {post.status}
+                <View key={post.id} style={styles.postCard}>
+                  {/* Card Header tag status */}
+                  <View style={styles.cardHeaderRow}>
+                    <View style={[styles.statusTag, isPublished ? styles.publishedTag : styles.draftTag]}>
+                      <Text style={isPublished ? styles.publishedTagText : styles.draftTagText}>
+                        {post.status.toUpperCase()}
                       </Text>
                     </View>
-                    <View className="flex-row items-center space-x-1">
-                      {post.isPrivate ? <Lock size={12} color="#94a3b8" /> : <Globe size={12} color="#94a3b8" />}
-                      <Text className="text-[11px] text-slate-400 font-semibold uppercase">
-                        {post.isPrivate ? 'Private' : 'Public'}
-                      </Text>
+                    <View style={styles.visibilityBox}>
+                      {post.isPrivate ? (
+                        <>
+                          <Lock size={14} color="#8e9bb0" style={{ marginRight: 4 }} />
+                          <Text style={styles.visibilityText}>Private</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Globe size={14} color="#8e9bb0" style={{ marginRight: 4 }} />
+                          <Text style={styles.visibilityText}>Public</Text>
+                        </>
+                      )}
                     </View>
                   </View>
 
                   {/* Title & Body */}
-                  <Text className="text-base font-bold text-[#134074] mb-1.5">{post.title}</Text>
-                  <Text className="text-[13px] text-slate-500 leading-relaxed mb-4">{post.body}</Text>
+                  <Text style={styles.postTitle}>{post.title}</Text>
+                  <Text style={styles.postBody}>{parseMarkdown(post.body)}</Text>
 
-                  {/* Published Stats */}
-                  {!isDraft && (
-                    <View className="flex-row justify-between items-center border-y border-slate-50 py-2.5 mb-4">
-                      <View className="flex-row items-center space-x-1.5">
-                        <Eye size={13} color="#94a3b8" />
-                        <Text className="text-[11px] text-slate-500 font-bold">{post.reach}</Text>
+                  {post.image && (
+                    <Image
+                      source={
+                        post.image === 'annual_conference.png'
+                          ? require('../../assets/annual_conference.png')
+                          : require('../../assets/server_room_update.png')
+                      }
+                      style={styles.postCardImage}
+                      resizeMode="cover"
+                    />
+                  )}
+
+                  {post.document && (
+                    <View style={styles.postCardDoc}>
+                      <FileText size={14} color="#0D3866" style={{ marginRight: 6 }} />
+                      <Text style={styles.postCardDocText}>{post.document}</Text>
+                    </View>
+                  )}
+
+                  {/* Metrics Row (only for published) */}
+                  {isPublished && (
+                    <View style={styles.metricsRow}>
+                      <View style={styles.metricItem}>
+                        <Eye size={15} color="#0D3866" style={{ marginRight: 4 }} />
+                        <Text style={styles.metricText}>{post.reach || '0'}</Text>
                       </View>
-                      <View className="flex-row items-center space-x-1.5">
-                        <ThumbsUp size={12} color="#94a3b8" />
-                        <Text className="text-[11px] text-slate-500 font-bold">{post.likes}</Text>
+                      <View style={styles.metricItem}>
+                        <Heart size={14} color="#0D3866" style={{ marginRight: 4 }} />
+                        <Text style={styles.metricText}>{post.likes ?? 0}</Text>
                       </View>
-                      <View className="flex-row items-center space-x-1.5">
-                        <MessageSquare size={13} color="#94a3b8" />
-                        <Text className="text-[11px] text-slate-500 font-bold">{post.comments}</Text>
+                      <View style={styles.metricItem}>
+                        <MessageSquare size={14} color="#0D3866" style={{ marginRight: 4 }} />
+                        <Text style={styles.metricText}>{post.comments ?? 0}</Text>
                       </View>
-                      <View className="flex-row items-center space-x-1.5">
-                        <Share2 size={13} color="#94a3b8" />
-                        <Text className="text-[11px] text-slate-500 font-bold">{post.shares}</Text>
+                      <View style={styles.metricItem}>
+                        <Share2 size={14} color="#0D3866" style={{ marginRight: 4 }} />
+                        <Text style={styles.metricText}>{post.shares ?? 0}</Text>
                       </View>
                     </View>
                   )}
 
-                  {/* Footer actions */}
-                  <View className="flex-row justify-between items-center">
+                  {/* Footer Row */}
+                  <View style={styles.cardFooterRow}>
                     <View>
-                      <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                        {isDraft ? 'Last Saved' : 'Posted Date'}
+                      <Text style={styles.footerLabel}>
+                        {isPublished ? 'POSTED DATE' : 'LAST SAVED'}
                       </Text>
-                      <Text className="text-[12px] font-semibold text-slate-800 mt-0.5 italic">
-                        {isDraft ? post.lastSaved : post.postedDate}
+                      <Text style={styles.footerValue}>
+                        {isPublished ? post.postedDate : post.lastSaved}
                       </Text>
                     </View>
-                    
-                    {/* Action buttons */}
-                    <View className="flex-row items-center space-x-4">
-                      {isDraft ? (
-                        <TouchableOpacity 
-                          onPress={() => handleEditPress(post)}
-                          className="flex-row items-center space-x-1"
-                        >
-                          <Text className="text-[#134074] font-bold text-[12px]">Continue Editing</Text>
-                          <Text className="text-[#134074] font-bold text-[12px]">→</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity><Info size={16} color="#64748b" /></TouchableOpacity>
-                      )}
 
-                      <TouchableOpacity onPress={() => handleEditPress(post)}>
-                        <Edit2 size={16} color="#134074" />
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(post)}>
+                        <Edit2 size={16} color="#0D3866" />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeletePost(post.id)}>
-                        <Trash2 size={16} color="#8A1F1F" />
+                      {isPublished && (
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => handleInfoPress(post)}>
+                          <Info size={16} color="#0D3866" />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(post.id)}>
+                        <Trash2 size={16} color="#C2410C" />
                       </TouchableOpacity>
                     </View>
                   </View>
+
+                  {/* Continue editing for drafts */}
+                  {!isPublished && (
+                    <TouchableOpacity style={styles.continueLink} onPress={() => handleEdit(post)}>
+                      <Text style={styles.continueText}>Continue Editing →</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })}
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          {/* Floating Scroll to Top */}
+          {showScrollTop && (
+            <TouchableOpacity
+              onPress={scrollToTop}
+              activeOpacity={0.85}
+              style={styles.scrollTopButton}
+            >
+              <ArrowUp size={20} color="white" />
+            </TouchableOpacity>
+          )}
+
+          {/* FAB Button */}
+          <TouchableOpacity style={styles.fabButton} onPress={handleCreateNew} activeOpacity={0.85}>
+            <Plus size={26} color="white" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Fallback Bottom Navigation (Visible when navigation is standalone) */}
+      {!navigation && (
+        <View style={styles.footerContainer}>
+          <View style={styles.footerTabBar}>
+            <TouchableOpacity style={styles.footerTabItem} onPress={() => onTabPress?.('feed')}>
+              <HomeIcon size={22} color="#134074" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.footerTabItem} onPress={() => onTabPress?.('analytics')}>
+              <BarChart3 size={22} color="#134074" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.footerTabItem, styles.footerTabItemActive]} onPress={() => {}}>
+              <Newspaper size={22} color="#70B62C" />
+              <Text style={styles.footerTabLabel}>Post</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.footerTabItem} onPress={() => onTabPress?.('Connect')}>
+              <Users size={22} color="#134074" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.footerTabItem} onPress={() => onTabPress?.('directory')}>
+              <DirectoryBookIcon color="#134074" />
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-
-        {/* Floating Action Button */}
-        <TouchableOpacity
-          onPress={handleCreatePress}
-          activeOpacity={0.85}
-          style={styles.fabButton}
-          className="bg-[#70B62C] rounded-full justify-center items-center shadow-lg"
-        >
-          <Plus size={26} color="white" />
-        </TouchableOpacity>
-
-        {/* Bottom Navigation */}
-        {!navigation && (
-          <View className="absolute bottom-0 left-0 right-0 flex-row justify-around items-center bg-white border-t border-slate-200 py-2.5 z-20">
-            <TouchableOpacity className="items-center" onPress={() => onTabPress?.('feed')}>
-              <Home size={24} color="#94a3b8" />
-              <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Home</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="items-center" onPress={() => onTabPress?.('analytics')}>
-              <BarChart3 size={24} color="#94a3b8" />
-              <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Analytics</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
-              <Calendar size={24} color="#94a3b8" />
-              <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Events</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
-              <Users size={24} color="#94a3b8" />
-              <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Directory</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="items-center" onPress={() => onTabPress?.('posts_all')}>
-              <FileText size={24} color="#70B62C" />
-              <Text className="text-[10px] mt-0.5 font-medium text-[#70B62C]">Post</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </SafeAreaView>
-    );
-  };
-
-  return isEditing ? renderEditor() : renderFeedList();
+        </View>
+      )}
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F7FB',
+  },
+  header: {
+    height: 56,
+    backgroundColor: '#E9F0FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: '#F4F7FB',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#334D6E',
+    padding: 0,
+  },
+  tabSwitcherRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: '#0D3866',
+    borderColor: '#0D3866',
+  },
+  tabButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  tabButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  summaryCard: {
+    backgroundColor: '#0D3866',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  summaryText: {
+    fontSize: 12,
+    color: '#93C5FD',
+    lineHeight: 16,
+    marginBottom: 16,
+  },
+  summaryStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  summaryStatBox: {
+    flex: 1,
+  },
+  summaryStatVal: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  summaryStatLabel: {
+    fontSize: 10,
+    color: '#93C5FD',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  summaryVerticalDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginHorizontal: 16,
+  },
+  postCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statusTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  publishedTag: {
+    backgroundColor: '#BEF264',
+  },
+  publishedTagText: {
+    color: '#3F6212',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  draftTag: {
+    backgroundColor: '#E2E8F0',
+  },
+  draftTagText: {
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  visibilityBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  visibilityText: {
+    fontSize: 11,
+    color: '#8e9bb0',
+    fontWeight: '600',
+  },
+  postTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 6,
+  },
+  postBody: {
+    fontSize: 12.5,
+    color: '#64748b',
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 10,
+    marginBottom: 12,
+    gap: 16,
+  },
+  metricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metricText: {
+    fontSize: 11.5,
+    color: '#0D3866',
+    fontWeight: '700',
+  },
+  cardFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  footerLabel: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+  },
+  footerValue: {
+    fontSize: 12,
+    color: '#334D6E',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionBtn: {
+    padding: 4,
+  },
+  continueLink: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  continueText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
   fabButton: {
     position: 'absolute',
-    bottom: 85,
-    right: 20,
-    width: 54,
-    height: 54,
+    bottom: 100,
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#70B62C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
     zIndex: 99,
+  },
+  formContent: {
+    paddingVertical: 16,
+  },
+  formHeader: {
+    height: 56,
+    backgroundColor: '#E9F0FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  formCloseButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  formHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  authorAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  authorInfo: {
+    flexDirection: 'column',
+  },
+  authorName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 4,
+  },
+  privacyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E9F0FA',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+  },
+  privacyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#134074',
+  },
+  editorCard: {
+    backgroundColor: '#EBF1F6',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    minHeight: 280,
+  },
+  editorTitleInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0D3866',
+    marginBottom: 12,
+    padding: 0,
+  },
+  editorBodyInput: {
+    fontSize: 14,
+    color: '#1E293B',
+    lineHeight: 22,
+    minHeight: 150,
+    textAlignVertical: 'top',
+    padding: 0,
+    marginBottom: 16,
+  },
+  editorFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(13, 56, 102, 0.08)',
+    paddingTop: 12,
+    marginTop: 'auto',
+  },
+  tagsSection: {
+    flex: 1,
+    marginRight: 8,
+  },
+  suggestedTagsLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tagPill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tagPillSelected: {
+    backgroundColor: '#E0F2FE',
+    borderColor: '#0D3866',
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334D6E',
+  },
+  tagTextSelected: {
+    color: '#0D3866',
+  },
+  customTagBtn: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  customTagText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  charCounterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#70B62C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  progressText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334D6E',
+  },
+  maxCharText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  toolbarDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
+  },
+  toolbarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    justifyContent: 'space-between',
+  },
+  toolbarFormatGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  toolbarFormatButton: {
+    padding: 6,
+  },
+  toolbarVerticalDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#CBD5E1',
+    marginHorizontal: 8,
+  },
+  toolbarAttachmentGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  toolbarAttachmentButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolbarAttachmentLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    marginBottom: 100,
+  },
+  saveTextButton: {
+    paddingVertical: 8,
+  },
+  saveTextButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0D3866',
+  },
+  postGradientButton: {
+    backgroundColor: '#0D3866',
+    borderRadius: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postGradientButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  footerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
+    zIndex: 100,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  footerTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    width: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  footerTabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  footerTabItemActive: {
+    backgroundColor: '#f0fdf4',
+  },
+  footerTabLabel: {
+    color: '#70B62C',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  scrollTopButton: {
+    position: 'absolute',
+    bottom: 165,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0D3866',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 99,
+  },
+  successContent: {
+    padding: 16,
+    alignItems: 'center',
+    paddingBottom: 120,
+  },
+  successHeader: {
+    height: 56,
+    backgroundColor: '#E9F0FA',
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    marginBottom: 24,
+  },
+  successHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  successCard: {
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  successIconWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 16,
+  },
+  successIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#70B62C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 32,
+    paddingHorizontal: 12,
+  },
+  successInfoBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    width: '100%',
+    padding: 16,
+    marginBottom: 32,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0D3866',
+  },
+  infoDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#BEF264',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  liveBadgeText: {
+    color: '#3F6212',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  verifiedBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 48,
+  },
+  verifiedBadgeText: {
+    color: '#1E40AF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  doneButton: {
+    flexDirection: 'row',
+    backgroundColor: '#0D3866',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  attachedImageContainer: {
+    marginTop: 12,
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+    height: 160,
+    width: '100%',
+  },
+  attachedImagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attachedDocContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 12,
+  },
+  attachedDocText: {
+    fontSize: 13,
+    color: '#0D3866',
+    fontWeight: '600',
+    flex: 1,
+  },
+  removeDocBtn: {
+    padding: 4,
+  },
+  postCardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  postCardDoc: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  postCardDocText: {
+    fontSize: 12,
+    color: '#0D3866',
+    fontWeight: '600',
   },
 });

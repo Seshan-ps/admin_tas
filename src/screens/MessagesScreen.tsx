@@ -96,16 +96,16 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ onBack, onTabPre
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-[#F4F7FC]">
       {/* Top Header */}
-      <View className="px-4 py-3 bg-[#E9F0FA] border-b border-blue-100 flex-row justify-between items-center">
-        <View className="flex-row items-center space-x-2">
+      <View className="flex-row items-center justify-between px-4 py-4 bg-[#EBF3FC] border-b border-blue-100/50 z-20">
+        <View className="flex-row items-center">
           {onBack && (
-            <TouchableOpacity onPress={onBack}>
-              <ArrowLeft size={20} color="#134074" />
+            <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3 rounded-full bg-white shadow-sm border border-slate-100">
+              <ArrowLeft size={18} color="#134074" />
             </TouchableOpacity>
           )}
-          <Text className="text-xl font-bold text-[#134074]">Secured Chats</Text>
+          <Text className="text-[20px] font-bold text-[#134074]">Secured Chats</Text>
         </View>
         <TouchableOpacity 
           onPress={() => setShowCreateGroup(true)}
@@ -116,80 +116,95 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ onBack, onTabPre
       </View>
 
       {/* Segmented Switcher */}
-      <View className="flex-row bg-slate-50 border-b border-slate-200">
+      <View className="flex-row bg-white border-b border-slate-200/60 shadow-sm z-10">
         <TouchableOpacity
           onPress={() => setActiveSegment('dms')}
-          className={`flex-1 py-3 items-center border-b-2 ${activeSegment === 'dms' ? 'border-[#134074]' : 'border-transparent'}`}
+          className={`flex-1 py-3.5 items-center border-b-2 ${activeSegment === 'dms' ? 'border-[#134074]' : 'border-transparent'}`}
         >
-          <Text className={`font-semibold text-sm ${activeSegment === 'dms' ? 'text-[#134074]' : 'text-slate-400'}`}>
+          <Text className={`font-bold text-sm ${activeSegment === 'dms' ? 'text-[#134074]' : 'text-slate-400'}`}>
             Direct Messages
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveSegment('groups')}
-          className={`flex-1 py-3 items-center border-b-2 ${activeSegment === 'groups' ? 'border-[#134074]' : 'border-transparent'}`}
+          className={`flex-1 py-3.5 items-center border-b-2 ${activeSegment === 'groups' ? 'border-[#134074]' : 'border-transparent'}`}
         >
-          <Text className={`font-semibold text-sm ${activeSegment === 'groups' ? 'text-[#134074]' : 'text-slate-400'}`}>
+          <Text className={`font-bold text-sm ${activeSegment === 'groups' ? 'text-[#134074]' : 'text-slate-400'}`}>
             Community Groups
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView className="flex-1 bg-[#F8FAFC]" showsVerticalScrollIndicator={true}>
+      <ScrollView 
+        className="flex-1 no-scrollbar" 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 60 }}
+      >
         {/* Search Input */}
-        <View className="bg-white border border-slate-200 rounded-lg m-3 px-3 py-2 flex-row items-center">
-          <Search size={18} color="#94a3b8" className="mr-2" />
+        <View className="bg-white border border-slate-200 rounded-xl mx-4 mt-4 mb-4 px-3.5 py-2.5 flex-row items-center shadow-sm">
+          <Search size={18} color="#64748b" className="mr-2.5" />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder={activeSegment === 'dms' ? "Search contacts..." : "Search committees & groups..."}
             placeholderTextColor="#94a3b8"
-            className="flex-1 text-slate-800 text-[14px] p-0"
+            className="flex-1 text-slate-800 text-[14px] p-0 font-medium"
           />
         </View>
 
         {activeSegment === 'dms' ? (
-          <View className="divide-y divide-slate-100 bg-white border-y border-slate-100">
-            {dms.map((dm) => (
-              <TouchableOpacity 
-                key={dm.id} 
-                onPress={() => Alert.alert('Chat Session', `Initiating encrypted chat with ${dm.name}`)}
-                className="flex-row items-center p-4 active:bg-slate-50"
-              >
-                <View className="relative">
-                  <Image source={dm.avatar} className="w-12 h-12 rounded-full" />
-                  <View className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-white" />
-                </View>
-                <View className="ml-3.5 flex-1">
-                  <View className="flex-row justify-between items-center">
-                    <Text className={`font-bold text-slate-800 text-[15px] ${dm.unread ? 'text-[#134074]' : ''}`}>{dm.name}</Text>
-                    <Text className="text-[11px] text-slate-400 font-semibold">{dm.time}</Text>
+          <View className="mx-4 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm mb-4">
+            <View className="divide-y divide-slate-100">
+              {dms.map((dm) => (
+                <TouchableOpacity 
+                  key={dm.id} 
+                  onPress={() => Alert.alert('Chat Session', `Initiating encrypted chat with ${dm.name}`)}
+                  className="flex-row items-center p-4 active:bg-slate-50"
+                >
+                  <View className="relative">
+                    <Image source={dm.avatar} className="w-12 h-12 rounded-full" />
+                    <View className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-white" />
                   </View>
-                  <Text className={`text-[13px] mt-1 ${dm.unread ? 'font-bold text-slate-800' : 'text-slate-500'}`} numberOfLines={1}>
-                    {dm.text}
-                  </Text>
-                </View>
-                {dm.unread && <View className="w-2.5 h-2.5 bg-[#70B62C] rounded-full ml-3" />}
-              </TouchableOpacity>
-            ))}
+                  <View className="ml-3.5 flex-1">
+                    <View className="flex-row justify-between items-center">
+                      <Text className={`font-bold text-[#134074] text-[15px] ${dm.unread ? 'text-[#134074]' : 'text-slate-800'}`}>{dm.name}</Text>
+                      <Text className="text-[11px] text-slate-400 font-semibold">{dm.time}</Text>
+                    </View>
+                    <Text className={`text-[13px] mt-1 ${dm.unread ? 'font-bold text-slate-800' : 'text-slate-500'}`} numberOfLines={1}>
+                      {dm.text}
+                    </Text>
+                  </View>
+                  {dm.unread && <View className="w-2.5 h-2.5 bg-[#70B62C] rounded-full ml-3" />}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         ) : (
-          <View className="px-3">
+          <View className="mt-1">
             {groups.map((group) => (
-              <View key={group.id} className="bg-white border border-slate-150 rounded-2xl p-4 mb-3 shadow-sm">
+              <View key={group.id} className="bg-white border border-slate-200/80 rounded-2xl p-4 mx-4 mb-4 shadow-sm">
                 <View className="flex-row justify-between items-center mb-2.5">
-                  <View className="bg-blue-50 px-2 py-0.5 rounded">
+                  <View className="bg-blue-50 px-2 py-0.5 rounded border border-blue-100/30">
                     <Text className="text-[10px] font-bold text-[#134074] uppercase tracking-wide">{group.category}</Text>
                   </View>
-                  <View className="flex-row items-center space-x-1">
-                    {group.is_private ? <Lock size={12} color="#94a3b8" /> : <Globe size={12} color="#94a3b8" />}
-                    <Text className="text-[10px] text-slate-400 font-semibold uppercase">{group.is_private ? 'Private' : 'Public'}</Text>
+                  <View className="flex-row items-center">
+                    {group.is_private ? (
+                      <>
+                        <Lock size={12} color="#94a3b8" />
+                        <Text className="text-[10px] text-slate-400 font-semibold uppercase ml-1">Private</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Globe size={12} color="#94a3b8" />
+                        <Text className="text-[10px] text-slate-400 font-semibold uppercase ml-1">Public</Text>
+                      </>
+                    )}
                   </View>
                 </View>
                 <Text className="text-base font-extrabold text-[#134074] mb-1">{group.name}</Text>
                 <Text className="text-xs text-slate-500 mb-3">{group.description}</Text>
                 
-                <View className="flex-row justify-between items-center border-t border-slate-50 pt-2.5">
+                <View className="flex-row justify-between items-center border-t border-slate-100 pt-2.5">
                   <Text className="text-[11px] text-slate-400 font-bold">{group.member_count} Members Active</Text>
                   <TouchableOpacity 
                     onPress={() => Alert.alert('Enter Channel', `Opening channel: #${group.name}`)}
