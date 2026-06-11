@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
-
-export const SplashScreen: React.FC<{ onFinish?: () => void }> = ({ onFinish }) => {
+export const SplashScreen = ({
+  onFinish
+}) => {
   useEffect(() => {
     if (onFinish) {
       const timer = setTimeout(() => {
@@ -10,30 +11,26 @@ export const SplashScreen: React.FC<{ onFinish?: () => void }> = ({ onFinish }) 
       return () => clearTimeout(timer);
     }
   }, [onFinish]);
+  return <View className="flex-1 bg-white relative">
+      <Image source={require('../../assets/background.png')} style={StyleSheet.absoluteFill} resizeMode="cover" />
 
-  return (
-    <View className="flex-1 bg-white relative">
-      <Image
-        source={require('../../assets/background.png')}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
-
-      <View 
-        style={{ flex: 1, justifyContent: 'space-between', alignItems: 'center' }}
-        className="py-16 px-8"
-      >
+      <View style={{
+      flex: 1,
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }} className="py-16 px-8">
         {/* Top Spacer to balance layout */}
-        <View style={{ height: 40 }} />
+        <View style={{
+        height: 40
+      }} />
 
         {/* Center Content */}
         <View className="items-center justify-center z-10">
           {/* Logo Image */}
-          <Image
-            source={require('../../assets/logo.png')}
-            style={{ width: 260, height: 110 }}
-            resizeMode="contain"
-          />
+          <Image source={require('../../assets/logo.png')} style={{
+          width: 260,
+          height: 110
+        }} resizeMode="contain" />
 
           {/* Tagline */}
           <Text className="text-[17px] font-medium text-slate-500/90 text-center tracking-wide leading-relaxed max-w-[280px] mt-8">
@@ -46,6 +43,5 @@ export const SplashScreen: React.FC<{ onFinish?: () => void }> = ({ onFinish }) 
           <View className="h-[5px] w-full bg-transparent" />
         </View>
       </View>
-    </View>
-  );
+    </View>;
 };
