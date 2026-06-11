@@ -31,6 +31,22 @@ export interface PostItem {
   interaction_count: number;
 }
 
+export interface Post {
+  id: string;
+  title: string;
+  body: string;
+  status: 'published' | 'draft';
+  isPrivate: boolean;
+  reach?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  postedDate?: string;
+  lastSaved?: string;
+  image?: string;
+  document?: string;
+}
+
 // Initial Mock Data
 const initialQueue: QueueItem[] = [
   {
@@ -105,7 +121,57 @@ class DbStore {
   private queue: QueueItem[] = [...initialQueue];
   private approved: ApprovedItem[] = [...initialApproved];
   private events: SocietyEvent[] = [...initialEvents];
-  private postsCount: number = 2; // base initial posts
+  private posts: Post[] = [
+    {
+      id: '1',
+      title: 'Annual Fiscal Review: 2023 Highlights',
+      body: 'Explore the key findings and growth metrics from the TAS accounting...',
+      status: 'published',
+      isPrivate: false,
+      reach: '1.2k',
+      likes: 342,
+      comments: 89,
+      shares: 12,
+      postedDate: 'Oct 24, 2023',
+    },
+    {
+      id: '2',
+      title: 'Car service Annual',
+      body: 'Explore the key findings and growth metrics from the TAS accounting...',
+      status: 'published',
+      isPrivate: false,
+      reach: '5.2k',
+      likes: 142,
+      comments: 90,
+      shares: 12,
+      postedDate: 'Oct 14, 2023',
+    },
+    {
+      id: '3',
+      title: 'Internal Memo: Staff Accreditation',
+      body: 'DRAFT: Please review the attached document regarding the 2024...',
+      status: 'draft',
+      isPrivate: true,
+      lastSaved: '2 hours ago',
+    },
+    {
+      id: '4',
+      title: 'Q3 Financial Guidelines Update',
+      body: 'This document outlines the revised reporting standards for all TAS registered members. Please ensure compliance with the updated audit trail requirements. The new measures focus on enhancing digital verification and institutional transparency across our multi-tier accounting frameworks.',
+      status: 'draft',
+      isPrivate: true,
+      lastSaved: '12 hours ago',
+    },
+    {
+      id: '5',
+      title: 'Tax Reform Analysis Brief',
+      body: 'A deep dive into the recent legislative changes regarding international tax credits...',
+      status: 'draft',
+      isPrivate: true,
+      lastSaved: '12 days ago',
+    },
+  ];
+  private postsCount: number = 5; // base initial posts
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -139,6 +205,16 @@ class DbStore {
 
   getPostsCount() {
     return this.postsCount;
+  }
+
+  getPosts() {
+    return this.posts;
+  }
+
+  setPosts(posts: Post[]) {
+    this.posts = posts;
+    this.postsCount = posts.length;
+    this.notify();
   }
 
   // Actions
