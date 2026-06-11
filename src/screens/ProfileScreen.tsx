@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   Alert,
   StyleSheet,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -15,31 +17,36 @@ import {
   Briefcase,
   Shield,
   Calendar,
-  CheckCircle2,
+  CheckCircle,
   AlertTriangle,
   LogOut,
-  Home,
-  BarChart3,
-  Users,
-  FileText,
+  ArrowUp,
 } from 'lucide-react-native';
 import { supabase } from '../config/supabase';
 
 interface ProfileScreenProps {
   onBack: () => void;
   onSignOut: () => void;
-  activeNavigationTab?: string;
-  onTabPress?: (tab: string) => void;
   navigation?: any;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onBack,
   onSignOut,
-  activeNavigationTab = 'directory',
-  onTabPress,
   navigation,
 }) => {
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 200);
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   const handleSignOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -50,234 +57,440 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         onSignOut();
       }
     } catch (err: any) {
-      // Supabase credentials might not be loaded yet, handle client auth state fallback
-      Alert.alert('Signed Out', 'Local session cleared successfully.');
+      Alert.alert('Signed Out', 'Session cleared successfully.');
       onSignOut();
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F8FAFC]">
+    <SafeAreaView style={styles.container}>
       {/* Top Header */}
-      <View className="flex-row items-center px-4 py-3 bg-[#E9F0FA] border-b border-blue-100 z-20">
-        <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3">
-          <ArrowLeft size={22} color="#134074" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <ArrowLeft size={22} color="#0D3866" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-[#134074]">Profile</Text>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView 
-        showsVerticalScrollIndicator={true}
-        contentContainerStyle={{ paddingBottom: 110 }}
-        className="flex-1 px-4 py-5"
+        ref={scrollViewRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Hero Profile Section */}
-        <View className="items-center mb-6">
+        {/* HERO SECTION */}
+        <View style={styles.heroSection}>
           {/* Avatar Container */}
-          <View className="relative">
+          <View style={styles.avatarContainer}>
             <Image
               source={require('../../assets/admin_profile.png')}
-              className="w-24 h-24 rounded-2xl border border-slate-100 shadow-sm"
+              style={styles.avatar}
             />
-            {/* Green Badge */}
-            <View className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#3F7E1F] border-2 border-white items-center justify-center">
-              <View className="w-2 h-2 rounded-full bg-white" />
-            </View>
+            {/* Green active status dot */}
+            <View style={styles.statusDot} />
           </View>
 
-          {/* Username */}
-          <Text className="text-2xl font-bold text-[#134074] mt-3">VGM_admin</Text>
-
-          {/* Active Badge */}
-          <View className="bg-[#A4E06E]/70 rounded-full px-3 py-0.5 mt-1">
-            <Text className="text-[#2B5713] text-xs font-bold tracking-wide">• Active</Text>
+          {/* User Details */}
+          <Text style={styles.username}>VGM_admin</Text>
+          
+          <View style={styles.activePill}>
+            <Text style={styles.activeText}>• Active</Text>
           </View>
-
-          {/* Role subtitle */}
-          <Text className="text-slate-600 font-medium text-sm mt-1.5">
-            Senior Administrator
-          </Text>
-
-          {/* Calendar subtitle */}
-          <View className="flex-row items-center mt-1 space-x-1.5">
-            <Calendar size={13} color="#94a3b8" />
-            <Text className="text-slate-400 text-xs font-medium">
-              Member since January 2019
-            </Text>
+          
+          <Text style={styles.roleTitle}>Senior Administrator</Text>
+          
+          <View style={styles.memberSinceRow}>
+            <Calendar size={14} color="#64748b" style={{ marginRight: 6 }} />
+            <Text style={styles.memberSinceText}>Member since January 2019</Text>
           </View>
         </View>
 
-        {/* Card 1: Personal Information */}
-        <View className="bg-white rounded-2xl p-4 border border-slate-150 shadow-sm mb-4">
-          <View className="flex-row items-center space-x-2.5 mb-4 pb-2 border-b border-slate-50">
-            <View className="bg-blue-50 p-2 rounded-lg">
-              <User size={18} color="#134074" />
+        {/* SECTION 1: PERSONAL INFORMATION */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrapper}>
+              <User size={18} color="#0D3866" />
             </View>
-            <Text className="text-lg font-bold text-[#134074]">Personal Information</Text>
+            <Text style={styles.cardHeaderTitle}>Personal Information</Text>
           </View>
 
-          <View className="space-y-4">
+          <View style={styles.fieldList}>
             {/* Full Name */}
-            <View>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Full Name
-              </Text>
-              <Text className="text-[15px] font-semibold text-slate-800 mt-0.5">
-                Marcus Thornton
-              </Text>
+            <View style={styles.fieldItem}>
+              <Text style={styles.fieldLabel}>FULL NAME</Text>
+              <Text style={styles.fieldValue}>Marcus Thornton</Text>
             </View>
 
             {/* Employee ID */}
-            <View>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Employee ID
-              </Text>
-              <Text className="text-[15px] font-semibold text-slate-800 mt-0.5">
-                TAS-992-04X
-              </Text>
+            <View style={styles.fieldItem}>
+              <Text style={styles.fieldLabel}>EMPLOYEE ID</Text>
+              <Text style={styles.fieldValue}>TAS-992-04X</Text>
             </View>
 
-            {/* Email */}
-            <View>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Email Address
-              </Text>
-              <Text className="text-[14px] font-semibold text-slate-800 mt-0.5">
-                m.thornton@tas-governance.org
-              </Text>
+            {/* Email Address */}
+            <View style={styles.fieldItem}>
+              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+              <Text style={styles.fieldValue}>m.thornton@tas-governance.org</Text>
             </View>
 
             {/* Phone */}
-            <View>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Phone
+            <View style={[styles.fieldItem, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <Text style={styles.fieldLabel}>PHONE</Text>
+              <Text style={styles.fieldValue}>+1 (555) 012-3456</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* SECTION 2: PROFESSIONAL ROLE */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrapper}>
+              <Briefcase size={18} color="#0D3866" />
+            </View>
+            <Text style={styles.cardHeaderTitle}>Professional Role</Text>
+          </View>
+
+          {/* Department */}
+          <View style={[styles.roleSubCard, styles.blueLeftBorder]}>
+            <Text style={styles.roleSubCardLabel}>DEPARTMENT</Text>
+            <Text style={styles.roleSubCardValue}>Governance & Oversight</Text>
+          </View>
+
+          {/* Access Level */}
+          <View style={[styles.roleSubCard, styles.greenLeftBorder]}>
+            <Text style={styles.roleSubCardLabel}>ACCESS LEVEL</Text>
+            <Text style={styles.roleSubCardValue}>Super Admin</Text>
+          </View>
+
+          {/* Core Permissions */}
+          <Text style={styles.permissionsTitle}>CORE PERMISSIONS</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.permissionBadge}>
+              <Text style={styles.badgeText}>SYSTEM_WRITE</Text>
+            </View>
+            <View style={styles.permissionBadge}>
+              <Text style={styles.badgeText}>USER_AUDIT</Text>
+            </View>
+            <View style={styles.permissionBadge}>
+              <Text style={styles.badgeText}>FISCAL_VIEW</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* SECTION 3: SECURITY SETTINGS */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrapper}>
+              <Shield size={18} color="#0D3866" />
+            </View>
+            <Text style={styles.cardHeaderTitle}>Security Settings</Text>
+          </View>
+
+          {/* 2FA Status */}
+          <View style={styles.securityItem}>
+            <CheckCircle size={20} color="#467A18" style={{ marginTop: 2, marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.securityItemTitle}>2FA Status: Enabled</Text>
+              <Text style={styles.securityItemDesc}>
+                Authenticated via Hardware Token (YubiKey 5C).
               </Text>
-              <Text className="text-[15px] font-semibold text-slate-800 mt-0.5">
-                +1 (555) 012-3456
+            </View>
+          </View>
+
+          {/* Password Age Warning */}
+          <View style={[styles.securityItem, styles.warningItem]}>
+            <AlertTriangle size={20} color="#B91C1C" style={{ marginTop: 2, marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.securityItemTitle, { color: '#991B1B' }]}>Last Password Change</Text>
+              <Text style={[styles.securityItemDesc, { color: '#B91C1C' }]}>
+                45 days ago. Recommended change in 15 days.
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Card 2: Professional Role */}
-        <View className="bg-white rounded-2xl p-4 border border-slate-150 shadow-sm mb-4">
-          <View className="flex-row items-center space-x-2.5 mb-4 pb-2 border-b border-slate-50">
-            <View className="bg-blue-50 p-2 rounded-lg">
-              <Briefcase size={18} color="#134074" />
-            </View>
-            <Text className="text-lg font-bold text-[#134074]">Professional Role</Text>
-          </View>
-
-          <View className="space-y-3.5">
-            {/* Department */}
-            <View className="border-l-4 border-[#134074] bg-[#F3F8FC] px-3.5 py-2.5 rounded-r-lg">
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Department
-              </Text>
-              <Text className="text-[15px] font-bold text-[#134074] mt-0.5">
-                Governance & Oversight
-              </Text>
-            </View>
-
-            {/* Access Level */}
-            <View className="border-l-4 border-[#3F7E1F] bg-[#F7FCF3] px-3.5 py-2.5 rounded-r-lg">
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Access Level
-              </Text>
-              <Text className="text-[15px] font-bold text-[#3F7E1F] mt-0.5">
-                Super Admin
-              </Text>
-            </View>
-
-            {/* Core Permissions */}
-            <View className="pt-2">
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">
-                Core Permissions
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {['SYSTEM_WRITE', 'USER_AUDIT', 'FISCAL_VIEW'].map((perm) => (
-                  <View key={perm} className="bg-blue-50 border border-blue-100 rounded px-2 py-1">
-                    <Text className="text-[11px] font-semibold text-[#134074]">{perm}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Card 3: Security Settings */}
-        <View className="bg-white rounded-2xl p-4 border border-slate-150 shadow-sm mb-6">
-          <View className="flex-row items-center space-x-2.5 mb-4 pb-2 border-b border-slate-50">
-            <View className="bg-blue-50 p-2 rounded-lg">
-              <Shield size={18} color="#134074" />
-            </View>
-            <Text className="text-lg font-bold text-[#134074]">Security Settings</Text>
-          </View>
-
-          <View className="space-y-3">
-            {/* 2FA Status Row */}
-            <View className="bg-[#F3F8FC] border border-blue-100 rounded-xl p-3 flex-row items-start space-x-3">
-              <CheckCircle2 size={20} color="#3F7E1F" className="mt-0.5" />
-              <View className="flex-1">
-                <Text className="text-slate-800 font-bold text-sm">2FA Status: Enabled</Text>
-                <Text className="text-[11px] text-slate-500 mt-0.5">
-                  Authenticated via Hardware Token (YubiKey 5C).
-                </Text>
-              </View>
-            </View>
-
-            {/* Password Warning Row */}
-            <View className="bg-[#F3F8FC] border border-blue-100 rounded-xl p-3 flex-row items-start space-x-3">
-              <AlertTriangle size={20} color="#8A1F1F" className="mt-0.5" />
-              <View className="flex-1">
-                <Text className="text-slate-800 font-bold text-sm">Last Password Change</Text>
-                <Text className="text-[11px] text-slate-500 mt-0.5">
-                  45 days ago. Recommended change in 15 days.
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Sign Out Button */}
-        <TouchableOpacity
+        {/* SIGN OUT BUTTON */}
+        <TouchableOpacity 
+          style={styles.signOutButton}
           onPress={handleSignOut}
-          className="border border-[#8A1F1F] rounded-xl py-3.5 flex-row justify-center items-center space-x-2 bg-white active:bg-red-50/50 mb-3"
+          activeOpacity={0.8}
         >
-          <LogOut size={16} color="#8A1F1F" />
-          <Text className="text-[#8A1F1F] font-bold text-[15px]">Sign Out Securely</Text>
+          <LogOut size={16} color="#DC2626" style={{ marginRight: 8 }} />
+          <Text style={styles.signOutButtonText}>Sign Out Securely</Text>
         </TouchableOpacity>
+
+        {/* Bottom spacer for tabs */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      {!navigation && (
-        <View className="absolute bottom-0 left-0 right-0 flex-row justify-around items-center bg-white border-t border-slate-200 py-2.5 z-20">
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('feed')}>
-            <Home size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('analytics')}>
-            <BarChart3 size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Analytics</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
-            <Calendar size={24} color={activeNavigationTab === 'directory' ? '#134074' : '#94a3b8'} />
-            <Text className={`text-[10px] mt-0.5 font-medium ${activeNavigationTab === 'directory' ? 'text-[#134074]' : 'text-slate-400'}`}>Events</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
-            <Users size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Directory</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('posts_all')}>
-            <FileText size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Posts</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Floating Scroll to Top */}
+      {showScrollTop && (
+        <TouchableOpacity
+          onPress={scrollToTop}
+          activeOpacity={0.85}
+          style={styles.scrollTopButton}
+        >
+          <ArrowUp size={20} color="white" />
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    height: 56,
+    backgroundColor: '#E9F0FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  avatarContainer: {
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  statusDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#467A18',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  username: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginTop: 14,
+  },
+  activePill: {
+    backgroundColor: '#AEE874',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 2.5,
+    marginTop: 6,
+  },
+  activeText: {
+    color: '#2B5713',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  roleTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 8,
+  },
+  memberSinceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  memberSinceText: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconWrapper: {
+    backgroundColor: '#E9F0FA',
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  cardHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  fieldList: {
+    flexDirection: 'column',
+  },
+  fieldItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 10,
+    marginBottom: 10,
+  },
+  fieldLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  fieldValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334D6E',
+  },
+  roleSubCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+  },
+  blueLeftBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#0D3866',
+  },
+  greenLeftBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#467A18',
+  },
+  roleSubCardLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  roleSubCardValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D3866',
+  },
+  permissionsTitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  permissionBadge: {
+    backgroundColor: '#E9F0FA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  badgeText: {
+    color: '#0D3866',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  securityItem: {
+    backgroundColor: '#F0F5FC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  warningItem: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+  },
+  securityItemTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334D6E',
+    marginBottom: 2,
+  },
+  securityItemDesc: {
+    fontSize: 11,
+    color: '#475569',
+    lineHeight: 15,
+  },
+  signOutButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DC2626',
+    borderRadius: 8,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  signOutButtonText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  scrollTopButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0D3866',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 99,
+  },
+});

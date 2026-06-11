@@ -19,6 +19,8 @@ import { PostManagementScreen } from './src/screens/PostManagementScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { MessagesScreen } from './src/screens/MessagesScreen';
 import { ConnectionsScreen } from './src/screens/ConnectionsScreen';
+import { MemberProfileScreen } from './src/screens/MemberProfileScreen';
+import { CreateEventScreen } from './src/screens/CreateEventScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -248,6 +250,8 @@ function RootNavigator() {
           <ConnectionsScreen onBack={() => navigation.goBack()} />
         )}
       </Stack.Screen>
+      <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
+      <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
     </Stack.Navigator>
   );
 }

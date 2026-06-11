@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
-  StyleSheet,
   Image,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -16,15 +17,13 @@ import {
   Calendar,
   Lock,
   ChevronDown,
-  TrendingUp,
-  TrendingDown,
   Percent,
   PlusCircle,
   Home,
   BarChart3,
-  MessageSquare,
-  FileText,
-  UserCheck,
+  Newspaper,
+  BookOpen,
+  ArrowUp,
 } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -41,6 +40,17 @@ type AnalysisTab = 'general' | 'memberships';
 export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabPress, navigation }) => {
   const [activeSegment, setActiveSegment] = useState<AnalysisTab>('general');
   const [usagePeriod, setUsagePeriod] = useState<'weekly' | 'monthly'>('weekly');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 300);
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   // SVG Donut Chart Parameters
   const size = 120;
@@ -48,27 +58,20 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Render SVG Donut Chart for Memberships
   const renderDonutChart = () => {
-    // We will draw segments for: Platinum Fellow (40%), Senior Associate (25%), Associate (20%), Student (15%)
-    // Colors: Platinum (#1E3A8A), Senior (#70B62C), Associate (#3B82F6), Student (#DBEAFE)
     const segments = [
-      { percentage: 40, color: '#134074' }, // Platinum
-      { percentage: 25, color: '#70B62C' }, // Senior
-      { percentage: 20, color: '#3B82F6' }, // Associate
-      { percentage: 15, color: '#DBEAFE' }, // Student
+      { percentage: 40, color: '#134074' },
+      { percentage: 25, color: '#70B62C' },
+      { percentage: 20, color: '#3B82F6' },
+      { percentage: 15, color: '#DBEAFE' },
     ];
-
     let currentOffset = 0;
-
     return (
       <View className="items-center justify-center relative my-4" style={{ height: size }}>
         <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
           {segments.map((seg, index) => {
-            const strokeDashoffset = circumference - (circumference * seg.percentage) / 105; // Slightly space segments
             const offset = currentOffset;
             currentOffset += seg.percentage;
-            
             return (
               <Circle
                 key={index}
@@ -86,7 +89,6 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
             );
           })}
         </Svg>
-        {/* Central Text */}
         <View className="absolute items-center justify-center">
           <Text className="text-lg font-extrabold text-[#134074]">100%</Text>
           <Text className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Active</Text>
@@ -95,122 +97,128 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
     );
   };
 
-  // GENERAL ANALYSIS VIEW
   const renderGeneralView = () => {
-    // Days of the week height metrics (out of 100)
     const barData = [
       { day: 'Mon', val: 60, green: false },
       { day: 'Tue', val: 15, green: false },
       { day: 'Wed', val: 40, green: false },
       { day: 'Thu', val: 55, green: false },
-      { day: 'Fri', val: 90, green: true }, // Friday highlighted
+      { day: 'Fri', val: 90, green: true },
       { day: 'Sat', val: 40, green: false },
       { day: 'Sun', val: 62, green: false },
     ];
 
     return (
-      <ScrollView showsVerticalScrollIndicator={true} className="flex-1 px-4 py-3">
+      <ScrollView 
+        ref={scrollViewRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false} 
+        className="flex-1 px-4 pt-3 pb-24"
+      >
         {/* Metrics Grid */}
         <View className="flex-row space-x-3 mb-3">
-          <View className="flex-1 bg-white border border-slate-150 rounded-xl p-3.5 flex-row items-center space-x-3.5 shadow-sm">
-            <View className="bg-blue-50 p-2.5 rounded-lg">
-              <Users size={20} color="#134074" />
+          <View className="flex-1 bg-white border border-slate-200 rounded-xl p-3.5 flex-row items-center shadow-sm">
+            <View className="border border-slate-100 bg-slate-50 p-2 rounded-lg mr-2.5">
+              <Users size={20} color="#5C7A9F" />
             </View>
             <View>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Members</Text>
-              <Text className="text-xl font-extrabold text-[#134074] mt-0.5">4.2k</Text>
+              <Text className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Total Members</Text>
+              <Text className="text-xl font-extrabold text-[#134074]">4.2k</Text>
             </View>
           </View>
-          <View className="flex-1 bg-white border border-slate-150 rounded-xl p-3.5 flex-row items-center space-x-3.5 shadow-sm">
-            <View className="bg-blue-50 p-2.5 rounded-lg">
-              <CreditCard size={20} color="#134074" />
+          <View className="flex-1 bg-white border border-slate-200 rounded-xl p-3.5 flex-row items-center shadow-sm">
+            <View className="border border-slate-100 bg-slate-50 p-2 rounded-lg mr-2.5">
+              <CreditCard size={20} color="#5C7A9F" />
             </View>
             <View>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Revenue</Text>
-              <Text className="text-xl font-extrabold text-[#134074] mt-0.5">₹85k</Text>
+              <Text className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Revenue</Text>
+              <Text className="text-xl font-extrabold text-[#134074]">₹85k</Text>
             </View>
           </View>
         </View>
 
         {/* Sub-Metric Card */}
-        <View className="bg-white border border-slate-150 rounded-xl p-3.5 flex-row items-center space-x-3.5 shadow-sm mb-4">
-          <View className="bg-blue-50 p-2.5 rounded-lg">
-            <Calendar size={20} color="#134074" />
+        <View className="bg-white border border-slate-200 rounded-xl p-3.5 flex-row items-center shadow-sm mb-4">
+          <View className="border border-slate-100 bg-slate-50 p-2 rounded-lg mr-2.5">
+            <Calendar size={20} color="#5C7A9F" />
           </View>
           <View>
-            <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Event Registrations</Text>
-            <Text className="text-xl font-extrabold text-[#134074] mt-0.5">340</Text>
+            <Text className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Event Registrations</Text>
+            <Text className="text-xl font-extrabold text-[#134074]">340</Text>
           </View>
         </View>
 
         {/* Usage Chart Card */}
-        <View className="bg-white border border-slate-150 rounded-2xl p-4 shadow-sm mb-4">
+        <View className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">
           <View className="flex-row justify-between items-center mb-6">
             <Text className="text-lg font-bold text-[#134074]">Usage</Text>
-            <View className="flex-row bg-blue-50 rounded-full p-0.5">
+            <View className="flex-row bg-[#E9F0FA] rounded-full p-1">
               <TouchableOpacity
                 onPress={() => setUsagePeriod('monthly')}
-                className={`px-3 py-1 rounded-full ${usagePeriod === 'monthly' ? 'bg-[#134074]' : ''}`}
+                className={`px-4 py-1.5 rounded-full ${usagePeriod === 'monthly' ? 'bg-[#134074]' : ''}`}
               >
-                <Text className={`text-[10px] font-bold ${usagePeriod === 'monthly' ? 'text-white' : 'text-slate-400'}`}>Monthly</Text>
+                <Text className={`text-xs font-bold ${usagePeriod === 'monthly' ? 'text-white' : 'text-[#5C7A9F]'}`}>Monthly</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setUsagePeriod('weekly')}
-                className={`px-3 py-1 rounded-full ${usagePeriod === 'weekly' ? 'bg-[#134074]' : ''}`}
+                className={`px-4 py-1.5 rounded-full ${usagePeriod === 'weekly' ? 'bg-[#134074]' : ''}`}
               >
-                <Text className={`text-[10px] font-bold ${usagePeriod === 'weekly' ? 'text-white' : 'text-slate-400'}`}>Weekly</Text>
+                <Text className={`text-xs font-bold ${usagePeriod === 'weekly' ? 'text-white' : 'text-[#5C7A9F]'}`}>Weekly</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Bar Chart Graphics */}
-          <View className="h-44 flex-row items-end justify-between px-2 pt-6">
+          <View className="h-44 flex-row items-end justify-between px-1 pt-6">
             {barData.map((bar, index) => (
-              <View key={index} className="items-center w-8 relative">
+              <View key={index} className="items-center relative" style={{ width: `${100/7}%` }}>
                 {bar.green && (
-                  <View className="absolute -top-6 bg-[#70B62C] px-1.5 py-0.5 rounded shadow-sm z-10">
-                    <Text className="text-white text-[9px] font-bold">8hrs</Text>
+                  <View className="absolute -top-7 bg-[#70B62C] px-2 py-1 rounded shadow-sm z-10">
+                    <Text className="text-white text-[10px] font-bold">8hrs</Text>
                   </View>
                 )}
                 <View 
-                  style={{ height: `${bar.val}%` }} 
-                  className={`w-4 rounded-t-md ${bar.green ? 'bg-[#70B62C]' : 'bg-[#134074]'}`} 
+                  style={{ height: `${bar.val}%`, width: 14 }} 
+                  className={`${bar.green ? 'bg-[#70B62C]' : 'bg-[#134074]'}`} 
                 />
-                <Text className="text-[10px] text-slate-400 font-semibold mt-2">{bar.day}</Text>
+                <Text className="text-[10px] text-slate-400 font-semibold mt-3">{bar.day}</Text>
               </View>
             ))}
           </View>
         </View>
 
         {/* System Config Card */}
-        <View className="bg-white border border-slate-150 rounded-2xl p-4 shadow-sm mb-4">
-          <Text className="text-base font-bold text-[#134074] mb-4">System Config</Text>
+        <View className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">
+          <Text className="text-base font-bold text-[#134074] mb-5">System Config</Text>
 
           <View className="space-y-4">
             {/* Server Uptime */}
             <View>
-              <View className="flex-row justify-between mb-1.5">
-                <Text className="text-xs font-semibold text-slate-500">Server Uptime</Text>
-                <Text className="text-xs font-bold text-slate-800">99.9%</Text>
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-[13px] font-bold text-slate-600">Server Uptime</Text>
+                <Text className="text-[13px] font-bold text-[#134074]">99.9%</Text>
               </View>
-              <View className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <View className="h-2.5 bg-[#E9F0FA] rounded-full overflow-hidden">
                 <View className="w-[99.9%] h-full bg-[#134074]" />
               </View>
             </View>
 
             {/* DB Latency */}
-            <View className="flex-row justify-between items-center py-1.5">
-              <Text className="text-xs font-semibold text-slate-500">DB Latency</Text>
+            <View className="flex-row justify-between items-center pb-2">
+              <Text className="text-[13px] font-bold text-slate-600">DB Latency</Text>
               <View className="flex-row items-center space-x-1.5">
-                <View className="w-2.5 h-2.5 rounded-full bg-[#70B62C]" />
-                <Text className="text-xs font-bold text-[#70B62C]">Low</Text>
+                <View className="w-2 h-2 rounded-full bg-[#70B62C]" />
+                <Text className="text-[13px] font-bold text-[#70B62C]">Low</Text>
               </View>
             </View>
 
+            <View className="h-[1px] bg-slate-100 w-full mb-1" />
+
             {/* Lock Banner */}
-            <View className="bg-[#F3F8FC] rounded-lg py-2 px-3 flex-row justify-center items-center space-x-2 border border-blue-50 mt-1">
-              <Lock size={12} color="#94a3b8" />
-              <Text className="text-[11px] text-slate-400 font-semibold">
+            <View className="flex-row items-center justify-center space-x-2 pt-1">
+              <Lock size={14} color="#cbd5e1" />
+              <Text className="text-[11px] text-slate-400 font-medium">
                 Secure Administrative Session Active
               </Text>
             </View>
@@ -218,39 +226,45 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
         </View>
 
         {/* Top Performing Regions Card */}
-        <View className="bg-white border border-slate-150 rounded-2xl p-4 shadow-sm mb-8">
-          <Text className="text-base font-bold text-[#134074] mb-4">Top Performing Regions</Text>
+        <View className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-8">
+          <Text className="text-base font-bold text-[#134074] mb-5">Top Performing Regions</Text>
 
-          <View className="space-y-4">
+          <View className="space-y-5">
             {/* Maharashtra */}
             <View>
-              <View className="flex-row justify-between mb-1.5">
-                <Text className="text-xs font-bold text-slate-800">Maharashtra (Mumbai Cluster)</Text>
-                <Text className="text-xs font-bold text-[#70B62C]">88% Capacity</Text>
+              <View className="flex-row justify-between items-start mb-2">
+                <Text className="text-[13px] font-bold text-[#134074] flex-1 mr-4">Maharashtra (Mumbai{'\n'}Cluster)</Text>
+                <View className="items-end mt-1">
+                  <Text className="text-[11px] font-bold text-[#70B62C]">88%</Text>
+                  <Text className="text-[11px] font-bold text-[#70B62C]">Capacity</Text>
+                </View>
               </View>
-              <View className="h-2 bg-blue-50 rounded-full overflow-hidden">
+              <View className="h-2.5 bg-[#E9F0FA] rounded-full overflow-hidden">
                 <View className="w-[88%] h-full bg-[#134074]" />
               </View>
             </View>
 
             {/* Delhi NCR */}
             <View>
-              <View className="flex-row justify-between mb-1.5">
-                <Text className="text-xs font-bold text-slate-800">Delhi NCR</Text>
-                <Text className="text-xs font-bold text-[#70B62C]">74% Capacity</Text>
+              <View className="flex-row justify-between items-center mb-2">
+                <Text className="text-[13px] font-bold text-[#134074]">Delhi NCR</Text>
+                <Text className="text-[11px] font-bold text-[#70B62C]">74% Capacity</Text>
               </View>
-              <View className="h-2 bg-blue-50 rounded-full overflow-hidden">
+              <View className="h-2.5 bg-[#E9F0FA] rounded-full overflow-hidden">
                 <View className="w-[74%] h-full bg-[#134074]" />
               </View>
             </View>
 
             {/* Karnataka */}
             <View>
-              <View className="flex-row justify-between mb-1.5">
-                <Text className="text-xs font-bold text-slate-800">Karnataka (Bangalore Hub)</Text>
-                <Text className="text-xs font-bold text-[#70B62C]">62% Capacity</Text>
+              <View className="flex-row justify-between items-start mb-2">
+                <Text className="text-[13px] font-bold text-[#134074] flex-1 mr-4">Karnataka (Bangalore{'\n'}Hub)</Text>
+                <View className="items-end mt-1">
+                  <Text className="text-[11px] font-bold text-[#70B62C]">62%</Text>
+                  <Text className="text-[11px] font-bold text-[#70B62C]">Capacity</Text>
+                </View>
               </View>
-              <View className="h-2 bg-blue-50 rounded-full overflow-hidden">
+              <View className="h-2.5 bg-[#E9F0FA] rounded-full overflow-hidden">
                 <View className="w-[62%] h-full bg-[#134074]" />
               </View>
             </View>
@@ -260,17 +274,15 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
     );
   };
 
-  // RELATED MEMBERSHIPS VIEW
   const renderMembershipsView = () => {
-    const activityFeed = [
-      { name: 'Julian Sterling', tier: 'Lifetime', time: 'Joined 45 mins ago', img: require('../../assets/admin_profile.png') },
-      { name: 'Sarah Chen', tier: 'Premium', time: 'Joined 2 hours ago', img: require('../../assets/elena_profile.png') },
-      { name: 'Marcus Thorne', tier: 'Basic', time: 'Joined 5 hours ago', img: require('../../assets/admin_profile.png') },
-    ];
-
     return (
-      <ScrollView showsVerticalScrollIndicator={true} className="flex-1 px-4 py-3">
-        {/* Total Active Memberships */}
+      <ScrollView 
+        ref={scrollViewRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false} 
+        className="flex-1 px-4 pt-3 pb-24"
+      >
         <View className="bg-white border border-slate-150 rounded-xl p-3.5 flex-row items-center space-x-3.5 shadow-sm mb-3">
           <View className="bg-blue-50 p-2.5 rounded-lg">
             <Users size={20} color="#134074" />
@@ -281,7 +293,6 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
           </View>
         </View>
 
-        {/* Tiers List */}
         <View className="space-y-2 mb-4">
           {[
             { tier: 'Lifetime', count: '1,000' },
@@ -299,65 +310,9 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
           ))}
         </View>
 
-        {/* Membership Analytics Header */}
-        <Text className="text-lg font-bold text-[#134074] mb-3">Membership Analytics</Text>
-
-        {/* Dropdown Styled Filter */}
-        <TouchableOpacity className="bg-white border border-slate-200 rounded-lg px-3 py-2 flex-row justify-between items-center mb-4 shadow-sm w-36">
-          <View className="flex-row items-center space-x-1.5">
-            <Calendar size={13} color="#64748b" />
-            <Text className="text-xs font-semibold text-slate-600">Last 6 Months</Text>
-          </View>
-          <ChevronDown size={14} color="#64748b" />
-        </TouchableOpacity>
-
-        {/* Comparative Metric Cards */}
-        <View className="space-y-3 mb-5">
-          {/* Revenue */}
-          <View className="bg-white border border-slate-150 rounded-xl p-4 shadow-sm relative">
-            <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</Text>
-            <View className="flex-row items-baseline mt-1 space-x-2">
-              <Text className="text-2xl font-extrabold text-[#134074]">$428,500</Text>
-              <Text className="text-[11px] font-bold text-[#70B62C]">↑12%</Text>
-            </View>
-            <View className="absolute right-4 top-4 bg-blue-50 p-1.5 rounded-lg">
-              <CreditCard size={14} color="#134074" />
-            </View>
-          </View>
-
-          {/* Conversion Rate */}
-          <View className="bg-white border border-slate-150 rounded-xl p-4 shadow-sm relative">
-            <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Conversion Rate</Text>
-            <View className="flex-row items-baseline mt-1 space-x-2">
-              <Text className="text-2xl font-extrabold text-[#134074]">24.8%</Text>
-              <Text className="text-[11px] font-bold text-[#70B62C]">↑3.1%</Text>
-            </View>
-            <View className="absolute right-4 top-4 bg-blue-50 p-1.5 rounded-lg">
-              <Percent size={14} color="#134074" />
-            </View>
-          </View>
-
-          {/* New Sales MTD */}
-          <View className="bg-white border border-slate-150 rounded-xl p-4 shadow-sm relative">
-            <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider">New Sales (MTD)</Text>
-            <View className="flex-row items-baseline mt-1 space-x-2">
-              <Text className="text-2xl font-extrabold text-[#134074]">142</Text>
-              <Text className="text-[11px] font-bold text-[#8A1F1F]">↓2%</Text>
-            </View>
-            <View className="absolute right-4 top-4 bg-blue-50 p-1.5 rounded-lg">
-              <PlusCircle size={14} color="#134074" />
-            </View>
-          </View>
-        </View>
-
-        {/* Tier Distribution Card */}
         <View className="bg-white border border-slate-150 rounded-2xl p-4 shadow-sm mb-4">
           <Text className="text-base font-bold text-[#134074] mb-2">Tier Distribution</Text>
-          
-          {/* Centered Donut SVG */}
           {renderDonutChart()}
-
-          {/* Legend Rows */}
           <View className="space-y-2.5 pt-3 border-t border-slate-50">
             {[
               { label: 'Platinum Fellow', val: '40%', color: 'bg-[#134074]' },
@@ -375,130 +330,91 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ onBack, onTabP
             ))}
           </View>
         </View>
-
-        {/* Recent Activity Feed */}
-        <View className="bg-white border border-slate-150 rounded-2xl p-4 shadow-sm mb-8">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-base font-bold text-[#134074]">Recent Activity</Text>
-            <TouchableOpacity><Text className="text-xs font-bold text-[#134074]">View All &gt;</Text></TouchableOpacity>
-          </View>
-
-          <View className="space-y-2.5">
-            {activityFeed.map((act, idx) => (
-              <View key={idx} className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex-row items-center">
-                <Image source={act.img} className="w-10 h-10 rounded-full border border-slate-200" />
-                <View className="ml-3 flex-1">
-                  <View className="flex-row justify-between items-center">
-                    <Text className="font-bold text-slate-800 text-[14px]">{act.name}</Text>
-                    <View className="bg-[#134074]/15 px-2 py-0.5 rounded-full">
-                      <Text className="text-[#134074] text-[9px] font-extrabold uppercase">✨ {act.tier}</Text>
-                    </View>
-                  </View>
-                  <Text className="text-[11px] text-slate-400 mt-1 font-medium">{act.time}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
       </ScrollView>
     );
   };
 
-  // HEADER BAR
   const renderHeader = () => {
     const isGeneral = activeSegment === 'general';
     return (
-      <View className="px-4 py-3 bg-[#E9F0FA] border-b border-blue-100 z-20">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1">
-            <ArrowLeft size={22} color="#134074" />
-          </TouchableOpacity>
-          
-          <Text className="text-xl font-bold text-[#134074]">
-            {isGeneral ? 'Analytics' : 'Connections'}
-          </Text>
-
-          {!isGeneral ? (
-            <View className="flex-row items-center bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5 space-x-1">
-              <View className="w-1.5 h-1.5 rounded-full bg-[#3F7E1F]" />
-              <Text className="text-[#3F7E1F] text-[9px] font-bold uppercase tracking-wider">Live Data</Text>
-            </View>
-          ) : (
-            <View style={{ width: 24 }} />
-          )}
+      <View className="pt-2 z-20">
+        <View className="px-4 py-2 flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={onBack} className="p-1 -ml-1 mr-3">
+              <ArrowLeft size={24} color="#134074" />
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-[#134074]">
+              Analytics
+            </Text>
+          </View>
         </View>
 
-        {/* Segmented Control tab bar */}
-        <View className="flex-row bg-[#D2E4F9]/30 rounded-xl p-1 mt-4 border border-blue-100/30">
-          <TouchableOpacity
-            onPress={() => setActiveSegment('general')}
-            className={`flex-1 py-2 rounded-lg items-center ${isGeneral ? 'bg-[#134074]' : ''}`}
-          >
-            <Text className={`text-xs font-bold ${isGeneral ? 'text-white' : 'text-[#134074]'}`}>
-              General Analysis
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setActiveSegment('memberships')}
-            className={`flex-1 py-2 rounded-lg items-center ${!isGeneral ? 'bg-[#134074]' : ''}`}
-          >
-            <Text className={`text-xs font-bold ${!isGeneral ? 'text-white' : 'text-[#134074]'}`}>
-              Related Memberships
-            </Text>
-          </TouchableOpacity>
+        <View className="px-4 mt-2 mb-2">
+          <View className="flex-row bg-[#F4F7FB] border border-slate-200 rounded-xl p-1 shadow-sm">
+            <TouchableOpacity
+              onPress={() => setActiveSegment('general')}
+              className={`flex-1 py-2.5 rounded-lg items-center ${isGeneral ? 'bg-[#134074]' : ''}`}
+            >
+              <Text className={`text-[12px] text-center font-bold leading-tight ${isGeneral ? 'text-white' : 'text-slate-500'}`}>
+                General{'\n'}Analysis
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setActiveSegment('memberships')}
+              className={`flex-1 py-2.5 rounded-lg items-center ${!isGeneral ? 'bg-[#134074]' : ''}`}
+            >
+              <Text className={`text-[12px] text-center font-bold leading-tight ${!isGeneral ? 'text-white' : 'text-slate-500'}`}>
+                Related{'\n'}Memberships
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
   };
 
-  // FOOTER NAVIGATION BAR (DYNAMIC ACCORDING TO REQUIREMENTS)
   const renderFooterNav = () => {
-    const isGeneral = activeSegment === 'general';
-
     return (
-      <View className="absolute bottom-0 left-0 right-0 flex-row justify-around items-center bg-white border-t border-slate-200 py-2.5 z-20">
-        {/* Home */}
+      <View className="absolute bottom-4 left-4 right-4 bg-white rounded-2xl border border-slate-200 py-3.5 px-6 shadow-md flex-row justify-between items-center z-20">
         <TouchableOpacity className="items-center" onPress={() => onTabPress?.('feed')}>
-          <Home size={24} color="#94a3b8" />
-          <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Home</Text>
+          <Home size={26} color="#134074" strokeWidth={2.5} />
         </TouchableOpacity>
 
-        {/* Analytics (Active if General Analysis is open) */}
-        <TouchableOpacity className="items-center" onPress={() => setActiveSegment('general')}>
-          <BarChart3 size={24} color={isGeneral ? '#70B62C' : '#94a3b8'} />
-          <Text className={`text-[10px] mt-0.5 font-medium ${isGeneral ? 'text-[#70B62C]' : 'text-slate-400'}`}>
-            Analytics
-          </Text>
+        <TouchableOpacity className="flex-row items-center" onPress={() => setActiveSegment('general')}>
+          <BarChart3 size={26} color="#70B62C" strokeWidth={2.5} />
+          <Text className="text-[#70B62C] font-bold ml-1.5 text-[15px]">Analytics</Text>
         </TouchableOpacity>
 
-        {/* Events */}
         <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
-          <Calendar size={24} color="#94a3b8" />
-          <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Events</Text>
+          <Newspaper size={26} color="#134074" strokeWidth={2.5} />
         </TouchableOpacity>
 
-        {/* Connect (Active if Related Memberships is open) */}
         <TouchableOpacity className="items-center" onPress={() => setActiveSegment('memberships')}>
-          <UserCheck size={24} color={!isGeneral ? '#70B62C' : '#94a3b8'} />
-          <Text className={`text-[10px] mt-0.5 font-medium ${!isGeneral ? 'text-[#70B62C]' : 'text-slate-400'}`}>
-            Connect
-          </Text>
+          <Users size={26} color="#134074" strokeWidth={2.5} />
         </TouchableOpacity>
 
-        {/* Posts */}
-        <TouchableOpacity className="items-center" onPress={() => onTabPress?.('posts_all')}>
-          <FileText size={24} color="#94a3b8" />
-          <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Posts</Text>
+        <TouchableOpacity className="items-center" onPress={() => {}}>
+          <BookOpen size={26} color="#134074" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
     );
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-[#F4F7FB]">
       {renderHeader()}
       {activeSegment === 'general' ? renderGeneralView() : renderMembershipsView()}
       {!navigation && renderFooterNav()}
+      {showScrollTop && (
+        <TouchableOpacity
+          onPress={scrollToTop}
+          activeOpacity={0.85}
+          className="absolute bottom-24 right-4 w-11 h-11 rounded-full bg-[#134074] justify-center items-center shadow-md z-[99]"
+          style={{ elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 }}
+        >
+          <ArrowUp size={20} color="white" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };

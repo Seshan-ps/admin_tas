@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,35 +9,25 @@ import {
   SafeAreaView,
   Alert,
   StyleSheet,
-  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import {
   ArrowLeft,
   Search,
-  Lock,
-  Globe,
-  Edit2,
-  Trash2,
-  Info,
-  Plus,
-  X,
-  ChevronDown,
-  Mail,
   Download,
+  Mail,
+  Plus,
   Calendar,
   MapPin,
   Clock,
-  User,
+  IdCard,
+  ArrowUp,
+  Laptop,
+  Link,
   Users,
-  Building,
-  CheckCircle,
-  FileText,
-  BarChart3,
-  Home,
+  Edit2,
 } from 'lucide-react-native';
-import { supabase } from '../config/supabase';
-
-const { width } = Dimensions.get('window');
 
 interface Member {
   id: string;
@@ -48,24 +38,15 @@ interface Member {
   tier: 'PLATINUM' | 'SENIOR' | 'ASSOCIATE' | 'STUDENT';
   tierLabel: string;
   avatar: any;
+  hasGreenBorder?: boolean;
 }
 
 interface SocietyEvent {
   id: string;
   title: string;
   date: string;
-  time: string;
   location: string;
-  venueName: string;
-  venueAddress: string;
-  capacity: number;
-  registered: number;
-  privacy: string;
-  registrationDeadline: string;
-  description: string;
-  badge: 'FLAGSHIP' | 'SEMINAR' | 'NETWORKING' | 'UPCOMING';
-  status: 'CONFIRMED' | 'OPEN' | 'PLANNING';
-  iconType: 'computer' | 'users' | 'flagship';
+  attendees: number;
 }
 
 interface DirectoryScreenProps {
@@ -84,13 +65,34 @@ export const DirectoryScreen: React.FC<DirectoryScreenProps> = ({
   const [subTab, setSubTab] = useState<'members' | 'events'>(initialSubTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTier, setSelectedTier] = useState<string>('ALL');
-  
-  // Navigation State inside screen
-  // 'list' | 'event_detail' | 'edit_event' | 'create_event'
-  const [viewState, setViewState] = useState<'list' | 'event_detail' | 'edit_event' | 'create_event'>('list');
-  const [selectedEvent, setSelectedEvent] = useState<SocietyEvent | null>(null);
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  // Mock Members Data
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 300);
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+
+  const eventMatches = (title: string, date: string, desc: string, location: string) => {
+    if (!eventSearchQuery) return true;
+    const query = eventSearchQuery.toLowerCase();
+    return (
+      title.toLowerCase().includes(query) ||
+      date.toLowerCase().includes(query) ||
+      desc.toLowerCase().includes(query) ||
+      location.toLowerCase().includes(query)
+    );
+  };
+
+  // Members data
   const [members] = useState<Member[]>([
     {
       id: '1',
@@ -101,6 +103,7 @@ export const DirectoryScreen: React.FC<DirectoryScreenProps> = ({
       tier: 'PLATINUM',
       tierLabel: 'PLATINUM ELITE',
       avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
     },
     {
       id: '2',
@@ -111,970 +114,1209 @@ export const DirectoryScreen: React.FC<DirectoryScreenProps> = ({
       tier: 'SENIOR',
       tierLabel: 'SENIOR FELLOW',
       avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
     },
     {
       id: '3',
       name: 'Jameson Thorne',
       designation: 'Forensic Accountant',
-      company: 'Thorne Consulting',
+      company: 'TAS Governance',
       memberId: 'TAS-8801-AS',
       tier: 'ASSOCIATE',
       tierLabel: 'ASSOCIATE',
       avatar: require('../../assets/admin_profile.png'),
-    },
-  ]);
-
-  // Mock Events Data
-  const [events, setEvents] = useState<SocietyEvent[]>([
-    {
-      id: '1',
-      title: 'Annual Tax Summit 2024',
-      date: 'Oct 24-26, 2024',
-      time: '09:00 AM',
-      location: 'Grand Plaza, London',
-      venueName: 'Grand Plaza Hotel & Suites',
-      venueAddress: '122 Park Lane, Mayfair, London W1K 7AA, United Kingdom',
-      capacity: 300,
-      registered: 245,
-      privacy: 'Members Only',
-      registrationDeadline: '11/01/2024',
-      description: 'The 2024 Annual Tax Summit is the premier gathering for accounting professionals, providing deep insights into new legislative changes, international compliance standards, and digital transformation in financial reporting.',
-      badge: 'UPCOMING',
-      status: 'CONFIRMED',
-      iconType: 'flagship',
-    },
-    {
-      id: '2',
-      title: 'Annual Tax Conference 2024',
-      date: 'Aug 15-17, 2024',
-      time: '09:00 AM',
-      location: 'Grand Hyatt, Texcity',
-      venueName: 'Grand Hyatt Convention Center',
-      venueAddress: '400 Main Street, Texcity, TX 75001',
-      capacity: 500,
-      registered: 450,
-      privacy: 'Members Only',
-      registrationDeadline: '08/01/2024',
-      description: 'Flagship annual taxation conference focusing on regional governance, policy updates, and panel sessions with state accounting leaders.',
-      badge: 'FLAGSHIP',
-      status: 'CONFIRMED',
-      iconType: 'flagship',
-    },
-    {
-      id: '3',
-      title: 'Ethics & Compliance Seminar',
-      date: 'Sep 05, 2024',
-      time: '02:00 PM',
-      location: 'TAS Connect Platform',
-      venueName: 'Online Portal',
-      venueAddress: 'https://connect.tas.org/webinar/live',
-      capacity: 1000,
-      registered: 780,
-      privacy: 'All Members',
-      registrationDeadline: '09/04/2024',
-      description: 'Mandatory training for all society members regarding updated 2024 ethics frameworks and regulatory standards compliance procedures.',
-      badge: 'SEMINAR',
-      status: 'OPEN',
-      iconType: 'computer',
+      hasGreenBorder: false,
     },
     {
       id: '4',
-      title: 'Local Chapter Networking',
-      date: 'Oct 12, 2024',
-      time: '06:30 PM',
-      location: 'Riverside Executive Lounge',
-      venueName: 'Riverside Lounge & Gardens',
-      venueAddress: '88 River Rd, Downtown Austin, TX 78701',
-      capacity: 100,
-      registered: 65,
-      privacy: 'Members & Invitees',
-      registrationDeadline: '10/10/2024',
-      description: 'Regional mixer for senior partners and upcoming associates to connect, share opportunities, and build local networks.',
-      badge: 'NETWORKING',
-      status: 'PLANNING',
-      iconType: 'users',
+      name: 'Sarah Jenkins',
+      designation: 'Senior Auditor',
+      company: 'PKF International Ltd.',
+      memberId: 'TAS-2024-8842',
+      tier: 'PLATINUM',
+      tierLabel: 'Platinum Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+    },
+    {
+      id: '5',
+      name: 'Marcus Vance',
+      designation: 'Tax Strategist',
+      company: 'Vance Partners',
+      memberId: 'TAS-5521-SR',
+      tier: 'SENIOR',
+      tierLabel: 'SENIOR FELLOW',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+    },
+    {
+      id: '6',
+      name: 'Clara Oswald',
+      designation: 'Compliance Lead',
+      company: 'Clara Audits Ltd.',
+      memberId: 'TAS-1209-AS',
+      tier: 'ASSOCIATE',
+      tierLabel: 'ASSOCIATE',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
+    },
+    {
+      id: '7',
+      name: 'Rupert Thorne',
+      designation: 'Junior Researcher',
+      company: 'City University',
+      memberId: 'TAS-3041-ST',
+      tier: 'STUDENT',
+      tierLabel: 'STUDENT MEMBER',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+    },
+    {
+      id: '8',
+      name: 'Liam Neeson',
+      designation: 'Security Director',
+      company: 'United Group',
+      memberId: 'TAS-9988-SR',
+      tier: 'SENIOR',
+      tierLabel: 'SENIOR FELLOW',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
     },
   ]);
 
-  // Form Fields State (for Creating/Editing events)
-  const [formTitle, setFormTitle] = useState('');
-  const [formDate, setFormDate] = useState('');
-  const [formTime, setFormTime] = useState('');
-  const [formLocation, setFormLocation] = useState('');
-  const [formCapacity, setFormCapacity] = useState('300');
-  const [formPrivacy, setFormPrivacy] = useState('Members Only');
-  const [formDeadline, setFormDeadline] = useState('');
-  const [formDescription, setFormDescription] = useState('');
+  // Events data
+  const [events] = useState<SocietyEvent[]>([
+    {
+      id: 'e1',
+      title: 'Tax Ethics Round-Table',
+      date: 'OCT 14, 2026',
+      location: 'Virtual Session',
+      attendees: 148,
+    },
+    {
+      id: 'e2',
+      title: 'Annual Society Gala',
+      date: 'OCT 22, 2026',
+      location: 'Grand Ballroom, City Center',
+      attendees: 320,
+    },
+  ]);
 
-  // Fetch events from Supabase
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const { data, error } = await supabase.from('events').select('*');
-        if (error) throw error;
-        if (data && data.length > 0) {
-          const formatted = data.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            date: new Date(item.date).toLocaleDateString(),
-            time: item.start_time,
-            location: item.location,
-            venueName: item.location,
-            venueAddress: 'TBD',
-            capacity: item.capacity || 300,
-            registered: item.registered_count || 0,
-            privacy: item.privacy || 'Members Only',
-            registrationDeadline: item.date,
-            description: item.description || '',
-            badge: 'UPCOMING',
-            status: 'OPEN',
-            iconType: 'users',
-          }));
-          setEvents(formatted);
-        }
-      } catch (e) {}
-    };
-    fetchEvents();
-  }, []);
-
-  const handleOpenEventDetail = (event: SocietyEvent) => {
-    setSelectedEvent(event);
-    setViewState('event_detail');
+  // Wrapper for search state changes to reset page
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    setCurrentPage(1);
   };
 
-  const handleEditEventPress = (event: SocietyEvent) => {
-    setSelectedEvent(event);
-    setFormTitle(event.title);
-    setFormDate(event.date);
-    setFormTime(event.time);
-    setFormLocation(event.location);
-    setFormCapacity(event.capacity.toString());
-    setFormPrivacy(event.privacy);
-    setFormDeadline(event.registrationDeadline);
-    setFormDescription(event.description);
-    setViewState('edit_event');
+  const handleTierChange = (tier: string) => {
+    setSelectedTier(tier);
+    setCurrentPage(1);
   };
 
-  const handleCreateEventPress = () => {
-    setSelectedEvent(null);
-    setFormTitle('');
-    setFormDate('');
-    setFormTime('');
-    setFormLocation('');
-    setFormCapacity('300');
-    setFormPrivacy('Members Only');
-    setFormDeadline('');
-    setFormDescription('');
-    setViewState('create_event');
-  };
-
-  const handleSaveChanges = async () => {
-    if (!formTitle || !formDate || !formLocation) {
-      Alert.alert('Incomplete Fields', 'Please fill in Title, Date, and Location.');
-      return;
-    }
-
-    const eventPayload = {
-      title: formTitle,
-      date: new Date(formDate).toISOString(),
-      start_time: formTime,
-      location: formLocation,
-      capacity: parseInt(formCapacity) || 300,
-      privacy: formPrivacy,
-      description: formDescription,
-    };
-
-    if (viewState === 'edit_event' && selectedEvent) {
-      // Edit existing
-      try {
-        const { error } = await supabase.from('events').update(eventPayload).eq('id', selectedEvent.id);
-        if (error) throw error;
-      } catch (e) {}
-
-      setEvents(
-        events.map((e) =>
-          e.id === selectedEvent.id
-            ? {
-                ...e,
-                title: formTitle,
-                date: formDate,
-                time: formTime,
-                location: formLocation,
-                capacity: parseInt(formCapacity) || 300,
-                privacy: formPrivacy,
-                registrationDeadline: formDeadline,
-                description: formDescription,
-              }
-            : e
-        )
-      );
-      Alert.alert('Changes Saved', 'The event has been updated successfully.');
-    } else {
-      // Create new
-      let newId = Date.now().toString();
-      try {
-        const { data, error } = await supabase.from('events').insert([eventPayload]).select();
-        if (error) throw error;
-        if (data && data[0]) newId = data[0].id;
-      } catch (e) {}
-
-      const newEvent: SocietyEvent = {
-        id: newId,
-        title: formTitle,
-        date: formDate,
-        time: formTime,
-        location: formLocation,
-        venueName: formLocation,
-        venueAddress: 'TBD',
-        capacity: parseInt(formCapacity) || 300,
-        registered: 0,
-        privacy: formPrivacy,
-        registrationDeadline: formDeadline,
-        description: formDescription,
-        badge: 'UPCOMING',
-        status: 'OPEN',
-        iconType: 'users',
-      };
-      setEvents([newEvent, ...events]);
-      Alert.alert('Success', 'A new event draft has been created.');
-    }
-    setViewState('list');
-  };
-
-  const handleCancelEvent = (id: string) => {
-    Alert.alert(
-      'Cancel Event',
-      'Are you sure you want to cancel this event? This action will notify all registered members.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel Event',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.from('events').delete().eq('id', id);
-              if (error) throw error;
-            } catch (e) {}
-            setEvents(events.filter((e) => e.id !== id));
-            setViewState('list');
-          },
-        },
-      ]
-    );
-  };
-
-  // Filter Members
-  const filteredMembers = members.filter((m) => {
+  // Filters members based on search and tier
+  const filteredMembers = members.filter((member) => {
     const matchesSearch =
-      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.memberId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.designation.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (selectedTier === 'ALL') return matchesSearch;
-    return matchesSearch && m.tier === selectedTier;
+      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.designation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.memberId.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTier = selectedTier === 'ALL' || member.tier === selectedTier;
+    return matchesSearch && matchesTier;
   });
 
-  // Filter Events
-  const filteredEvents = events.filter((e) => {
-    return (
-      e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.location.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const totalCount = filteredMembers.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
+  const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
 
-  // RENDER 1: MEMBERS DIRECTORY VIEW
-  const renderMembersList = () => {
-    const tiers: { key: string; label: string }[] = [
-      { key: 'ALL', label: 'ALL' },
-      { key: 'PLATINUM', label: 'PLATINUM' },
-      { key: 'SENIOR', label: 'SENIOR' },
-      { key: 'ASSOCIATE', label: 'ASSOCIATE' },
-      { key: 'STUDENT', label: 'STUDENT' },
-    ];
-
-    return (
-      <ScrollView className="flex-1 bg-[#F8FAFC]" contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Members Header Panel */}
-        <View className="px-4 pt-4 pb-2">
-          <View className="flex-row justify-between items-center mb-1.5">
-            <Text className="text-[26px] font-extrabold text-[#134074]">Members</Text>
-            <View className="bg-[#A4E06E] px-2.5 py-1 rounded-full">
-              <Text className="text-[#2B5713] text-[10px] font-bold uppercase tracking-wider">Active Database</Text>
-            </View>
-          </View>
-          <View className="items-end mb-4">
-            <Text className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Total Society Members</Text>
-            <Text className="text-3xl font-black text-[#134074] mt-0.5">1,284</Text>
-          </View>
-
-          {/* Search Registry */}
-          <View className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm mb-4">
-            <Text className="text-[11px] font-extrabold text-[#134074] uppercase tracking-wider mb-2">Search Registry</Text>
-            <View className="flex-row items-center border border-slate-200 rounded-lg px-3 py-2 bg-[#FCFDFE]">
-              <Search size={16} color="#94a3b8" className="mr-2" />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Filter by Name, ID, or Professional Designation..."
-                placeholderTextColor="#94a3b8"
-                className="flex-1 text-[13px] text-slate-800 p-0"
-              />
-            </View>
-
-            {/* Membership Tier Filter Pills */}
-            <Text className="text-[11px] font-extrabold text-[#134074] uppercase tracking-wider mt-4 mb-2">Membership Tier</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {tiers.map((tier) => {
-                const isActive = selectedTier === tier.key;
-                return (
-                  <TouchableOpacity
-                    key={tier.key}
-                    onPress={() => setSelectedTier(tier.key)}
-                    className={`rounded-full px-4 py-1.5 border ${
-                      isActive 
-                        ? 'bg-[#134074] border-[#134074]' 
-                        : 'bg-white border-slate-200'
-                    }`}
-                  >
-                    <Text className={`text-[10px] font-extrabold ${isActive ? 'text-white' : 'text-slate-500'}`}>
-                      {tier.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-
-        {/* Member Cards */}
-        <View className="px-4">
-          {filteredMembers.map((member) => {
-            // Colors based on Tier
-            let badgeBg = 'bg-slate-100';
-            let badgeText = 'text-slate-600';
-            if (member.tier === 'PLATINUM') {
-              badgeBg = 'bg-[#A4E06E]';
-              badgeText = 'text-[#2B5713]';
-            } else if (member.tier === 'SENIOR') {
-              badgeBg = 'bg-[#134074]';
-              badgeText = 'text-white';
-            } else if (member.tier === 'ASSOCIATE') {
-              badgeBg = 'bg-blue-100';
-              badgeText = 'text-blue-700';
-            }
-
-            return (
-              <View key={member.id} className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-sm">
-                <View className="flex-row mb-4">
-                  {/* Left avatar with green border for status */}
-                  <View className="relative">
-                    <Image
-                      source={member.avatar}
-                      className="w-14 h-14 rounded-lg border border-slate-100"
-                    />
-                    <View className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
-                  </View>
-
-                  {/* Member metadata */}
-                  <View className="ml-3.5 flex-1">
-                    <View className="flex-row justify-between items-start">
-                      <Text className="text-[16px] font-extrabold text-[#134074]">{member.name}</Text>
-                      <View className={`rounded px-2.5 py-0.5 ${badgeBg}`}>
-                        <Text className={`text-[9px] font-extrabold uppercase tracking-wide ${badgeText}`}>
-                          {member.tierLabel}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text className="text-[12px] text-slate-500 font-semibold mt-0.5">
-                      {member.designation}, {member.company}
-                    </Text>
-                    <View className="flex-row items-center mt-2.5">
-                      <View style={{ width: 14, height: 14, borderRadius: 7, borderStyle: 'dashed', borderWidth: 1, borderColor: '#94a3b8', justifyContent: 'center', alignItems: 'center', marginRight: 4 }}>
-                        <Text className="text-[8px] font-extrabold text-slate-400">⚙</Text>
-                      </View>
-                      <Text className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                        ID: {member.memberId}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Divider */}
-                <View className="h-[1px] bg-slate-100 mb-3" />
-
-                {/* Buttons Row */}
-                <View className="flex-row items-center space-x-2">
-                  <TouchableOpacity 
-                    onPress={() => Alert.alert('View Profile', `Opening profile of ${member.name}`)}
-                    className="flex-1 bg-[#134074] rounded-lg py-2 items-center"
-                  >
-                    <Text className="text-white font-extrabold text-xs">VIEW PROFILE</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    onPress={() => Alert.alert('Download Certificate', `Downloading credentials sheet for ID: ${member.memberId}`)}
-                    className="flex-row items-center bg-white border border-slate-200 rounded-lg px-4 py-2"
-                  >
-                    <Download size={13} color="#134074" className="mr-1.5" />
-                    <Text className="text-[#134074] font-extrabold text-xs">Download</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    onPress={() => Alert.alert('Compose Mail', `Sending message to: ${member.memberId}@tas.org`)}
-                    className="bg-white border border-slate-200 rounded-lg p-2 items-center justify-center"
-                  >
-                    <Mail size={15} color="#134074" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Pagination Section */}
-        <View className="items-center mt-4">
-          <Text className="text-[11px] text-slate-400 font-semibold mb-3">Showing 1-6 of 1,284 results</Text>
-          <View className="flex-row items-center space-x-1.5">
-            <TouchableOpacity className="w-8 h-8 rounded-lg border border-slate-200 items-center justify-center bg-white">
-              <Text className="text-slate-400 font-bold">‹</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-8 h-8 rounded-lg bg-[#134074] items-center justify-center">
-              <Text className="text-white font-bold text-xs">1</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-8 h-8 rounded-lg border border-slate-200 items-center justify-center bg-white">
-              <Text className="text-slate-600 font-bold text-xs">2</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-8 h-8 rounded-lg border border-slate-200 items-center justify-center bg-white">
-              <Text className="text-slate-600 font-bold text-xs">3</Text>
-            </TouchableOpacity>
-
-            <Text className="text-slate-400 text-xs px-1 font-bold">...</Text>
-
-            <TouchableOpacity className="w-10 h-10 rounded-lg border border-slate-200 items-center justify-center bg-white">
-              <Text className="text-slate-600 font-bold text-xs">214</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-8 h-8 rounded-lg border border-slate-200 items-center justify-center bg-white">
-              <Text className="text-slate-600 font-bold">›</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  // RENDER 2: EVENTS MAIN LIST VIEW
-  const renderEventsList = () => {
-    return (
-      <ScrollView className="flex-1 bg-[#F8FAFC]" contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Events Subtitle Panel */}
-        <View className="px-4 pt-4 pb-2">
-          <Text className="text-2xl font-extrabold text-[#134074] mb-1.5">Upcoming Events</Text>
-          <Text className="text-[12px] text-slate-500 font-medium mb-4">
-            Manage society activities and administrative conferences.
-          </Text>
-        </View>
-
-        {/* Dynamic Events Cards */}
-        <View className="px-4">
-          {filteredEvents.map((event) => {
-            // Determine icons and tags based on event type
-            const isFlagship = event.badge === 'FLAGSHIP';
-            const isSeminar = event.badge === 'SEMINAR';
-            const isNetworking = event.badge === 'NETWORKING';
-
-            return (
-              <View key={event.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4 shadow-sm">
-                {/* Event header picture/icon block */}
-                {isFlagship ? (
-                  <View className="relative">
-                    <Image
-                      source={require('../../assets/server_room_update.png')}
-                      className="w-full h-44"
-                      resizeMode="cover"
-                    />
-                    <View className="absolute top-3 left-3 bg-[#134074] px-2.5 py-0.5 rounded">
-                      <Text className="text-white text-[9px] font-extrabold tracking-wider">FLAGSHIP</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View className="px-4 pt-4 pb-1 flex-row justify-between items-center">
-                    <View className={`p-2.5 rounded-xl ${isSeminar ? 'bg-[#D2E4F9]/60' : 'bg-blue-50'}`}>
-                      {isSeminar ? (
-                        <View className="w-5 h-5 bg-[#70B62C] rounded items-center justify-center">
-                          <Text className="text-white text-[9px] font-bold">💻</Text>
-                        </View>
-                      ) : (
-                        <Users size={18} color="#134074" />
-                      )}
-                    </View>
-                    <View className="bg-slate-100 px-2 py-0.5 rounded">
-                      <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">{event.badge}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Event details */}
-                <View className="p-4">
-                  <View className="flex-row justify-between items-center mb-1">
-                    <Text className="text-[11px] font-bold text-[#70B62C] uppercase tracking-wider">{event.date}</Text>
-                    <View className="bg-emerald-50 border border-emerald-100 rounded px-2 py-0.5">
-                      <Text className="text-emerald-700 text-[9px] font-extrabold uppercase tracking-wide">{event.status}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity onPress={() => handleOpenEventDetail(event)}>
-                    <Text className="text-[17px] font-extrabold text-[#134074] mb-2 active:text-blue-800">
-                      {event.title}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Optional short description */}
-                  {event.description && !isFlagship && (
-                    <Text className="text-slate-500 text-[12px] leading-relaxed mb-3" numberOfLines={2}>
-                      {event.description}
-                    </Text>
-                  )}
-
-                  <View className="flex-row items-center space-x-3.5 mb-4">
-                    <View className="flex-row items-center">
-                      <MapPin size={13} color="#94a3b8" />
-                      <Text className="text-[11px] text-slate-500 ml-1 font-semibold">{event.location}</Text>
-                    </View>
-                    <View className="flex-row items-center">
-                      <Users size={13} color="#94a3b8" />
-                      <Text className="text-[11px] text-slate-500 ml-1 font-semibold">
-                        {event.registered} Registered
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Buttons Row */}
-                  <View className="flex-row items-center space-x-3 border-t border-slate-100 pt-3">
-                    <TouchableOpacity 
-                      onPress={() => handleCancelEvent(event.id)}
-                      className="flex-1 bg-white border border-slate-200 rounded-lg py-2.5 items-center"
-                    >
-                      <Text className="text-slate-500 font-extrabold text-xs">
-                        {isNetworking ? 'Cancel Event' : 'Cancel Event'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      onPress={() => handleEditEventPress(event)}
-                      className="flex-1 bg-[#134074] rounded-lg py-2.5 flex-row justify-center items-center"
-                    >
-                      <Edit2 size={13} color="white" className="mr-1.5" />
-                      <Text className="text-white font-extrabold text-xs">
-                        {isNetworking ? 'Manage Planning' : 'Edit Event'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Annual Participation Goal Box */}
-        <View className="bg-[#134074] m-4 p-5 rounded-2xl shadow-sm relative overflow-hidden">
-          <Text className="text-white font-bold text-base mb-1">Annual Participation Goal</Text>
-          <Text className="text-blue-100/80 text-[13px] leading-relaxed mb-4">
-            You're at 82% of the targeted annual event engagement. Reaching 90% unlocks the Regional Chapter Grant.
-          </Text>
-          <View className="flex-row space-x-8">
-            <View>
-              <Text className="text-[#A4E06E] font-extrabold text-xl">1.2k</Text>
-              <Text className="text-blue-100/60 text-[9px] font-bold uppercase mt-0.5">Total Attendees</Text>
-            </View>
-            <View>
-              <Text className="text-[#A4E06E] font-extrabold text-xl">14</Text>
-              <Text className="text-blue-100/60 text-[9px] font-bold uppercase mt-0.5">Events YTD</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  // RENDER 3: EVENT DETAIL VIEW
-  const renderEventDetail = () => {
-    if (!selectedEvent) return null;
-    const progressPercent = Math.min(
-      Math.round((selectedEvent.registered / selectedEvent.capacity) * 100),
-      100
-    );
-
-    return (
-      <ScrollView className="flex-1 bg-[#F8FAFC]" contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Back navigation */}
-        <TouchableOpacity 
-          onPress={() => setViewState('list')}
-          className="flex-row items-center px-4 py-3 bg-white border-b border-slate-100"
-        >
-          <ArrowLeft size={18} color="#134074" className="mr-2" />
-          <Text className="text-[#134074] font-extrabold text-sm">Back to Directory</Text>
-        </TouchableOpacity>
-
-        {/* Core Event Information Card */}
-        <View className="bg-white border border-slate-200 rounded-2xl m-4 p-5 shadow-sm">
-          <View className="flex-row justify-between items-center mb-3">
-            <View className="bg-[#A4E06E] px-2.5 py-0.5 rounded">
-              <Text className="text-[#2B5713] text-[10px] font-extrabold uppercase tracking-wide">UPCOMING</Text>
-            </View>
-            <Text className="text-slate-400 text-xs font-bold">ID: #AS-2024-001</Text>
-          </View>
-
-          <Text className="text-2xl font-extrabold text-[#134074] mb-4">{selectedEvent.title}</Text>
-
-          <View className="space-y-3 mb-6">
-            <View className="flex-row items-center">
-              <Calendar size={16} color="#134074" className="mr-3" />
-              <Text className="text-slate-700 font-extrabold text-sm">{selectedEvent.date}</Text>
-            </View>
-            <View className="flex-row items-center">
-              <MapPin size={16} color="#134074" className="mr-3" />
-              <Text className="text-slate-700 font-extrabold text-sm">{selectedEvent.location}</Text>
-            </View>
-          </View>
-
-          <View className="flex-row items-center space-x-3.5 pt-4 border-t border-slate-100">
-            <TouchableOpacity 
-              onPress={() => handleEditEventPress(selectedEvent)}
-              className="flex-1 bg-[#134074] rounded-lg py-2.5 flex-row justify-center items-center"
-            >
-              <Edit2 size={13} color="white" className="mr-1.5" />
-              <Text className="text-white font-extrabold text-xs">Edit Event</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => handleCancelEvent(selectedEvent.id)}
-              className="flex-1 bg-white border border-slate-200 rounded-lg py-2.5 items-center"
-            >
-              <Text className="text-slate-500 font-extrabold text-xs">Cancel Event</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Capacity / Registration Progress Bar Card */}
-        <View className="bg-white border border-slate-200 rounded-2xl m-4 p-5 shadow-sm">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-base font-extrabold text-[#134074]">Registration</Text>
-            <Users size={16} color="#94a3b8" />
-          </View>
-
-          <View className="flex-row items-baseline mb-3">
-            <Text className="text-3xl font-extrabold text-[#134074]">{selectedEvent.registered}</Text>
-            <Text className="text-slate-400 text-sm font-semibold ml-2">/ {selectedEvent.capacity} Capacity</Text>
-          </View>
-
-          {/* Progress track */}
-          <View className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-3">
-            <View 
-              style={{ width: `${progressPercent}%` }}
-              className="h-full bg-green-600 rounded-full" 
-            />
-          </View>
-
-          <Text className="text-slate-500 text-[12px] leading-relaxed mb-4">
-            {progressPercent}% capacity filled. {selectedEvent.capacity - selectedEvent.registered} slots remaining for general admission.
-          </Text>
-
-          <TouchableOpacity 
-            onPress={() => Alert.alert('Export Complete', 'The attendee list has been compiled and downloaded as CSV.')}
-            className="w-full bg-blue-50 border border-blue-100 rounded-lg py-2.5 flex-row justify-center items-center"
-          >
-            <Download size={14} color="#134074" className="mr-2" />
-            <Text className="text-[#134074] font-extrabold text-xs">Export Attendee List</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Venue Details Card */}
-        <View className="bg-white border border-slate-200 rounded-2xl m-4 p-5 shadow-sm">
-          <Text className="text-base font-extrabold text-[#134074] mb-3.5">Venue Details</Text>
-          
-          <View className="flex-row mb-4">
-            <Building size={16} color="#134074" className="mr-3.5 mt-0.5" />
-            <View className="flex-1">
-              <Text className="font-extrabold text-slate-800 text-sm">{selectedEvent.venueName}</Text>
-              <Text className="text-[12px] text-slate-400 font-semibold mt-0.5">The Ballroom, Level 3</Text>
-            </View>
-          </View>
-
-          <View className="flex-row">
-            <MapPin size={16} color="#134074" className="mr-3.5 mt-0.5" />
-            <Text className="flex-1 text-slate-500 text-sm leading-relaxed">
-              {selectedEvent.venueAddress}
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  // RENDER 4: CREATE / EDIT EVENT FORM VIEW
-  const renderEventForm = () => {
-    const isCreate = viewState === 'create_event';
-
-    return (
-      <ScrollView className="flex-1 bg-[#F8FAFC]" contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Back navigation */}
-        <TouchableOpacity 
-          onPress={() => setViewState('list')}
-          className="flex-row items-center px-4 py-3 bg-white border-b border-slate-100"
-        >
-          <ArrowLeft size={18} color="#134074" className="mr-2" />
-          <Text className="text-[#134074] font-extrabold text-sm">Back to list</Text>
-        </TouchableOpacity>
-
-        {/* Form Title banner */}
-        <View className="px-4 py-4">
-          <Text className="text-2xl font-black text-[#134074]">
-            {isCreate ? 'Event' : 'Edit Event'}
-          </Text>
-          <Text className="text-[12px] text-slate-500 font-medium mt-1">
-            {isCreate ? 'Create a new event' : 'Update the details for the upcoming taxation summit.'}
-          </Text>
-          <View className="flex-row mt-2.5">
-            <View className="bg-blue-100 px-3 py-0.5 rounded-full flex-row items-center space-x-1 border border-blue-200">
-              <CheckCircle size={10} color="#134074" />
-              <Text className="text-[#134074] text-[9px] font-extrabold uppercase tracking-wider">Secure Draft</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Input container card */}
-        <View className="bg-white border border-slate-200 rounded-2xl m-4 p-5 shadow-sm">
-          {/* Section 1: General Info */}
-          <Text className="text-sm font-extrabold text-[#134074] uppercase tracking-wide border-b border-slate-100 pb-2 mb-4">
-            General Information
-          </Text>
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Event Title</Text>
-          <TextInput
-            value={formTitle}
-            onChangeText={setFormTitle}
-            placeholder="e.g. Annual Tax Summit 2024"
-            placeholderTextColor="#cbd5e1"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 mb-4 bg-[#FCFDFE]"
-          />
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Date</Text>
-          <TextInput
-            value={formDate}
-            onChangeText={setFormDate}
-            placeholder="dd/mm/yyyy"
-            placeholderTextColor="#cbd5e1"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 mb-4 bg-[#FCFDFE]"
-          />
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Start Time</Text>
-          <TextInput
-            value={formTime}
-            onChangeText={setFormTime}
-            placeholder="00:00 AM"
-            placeholderTextColor="#cbd5e1"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 mb-6 bg-[#FCFDFE]"
-          />
-
-          {/* Section 2: Logistics */}
-          <Text className="text-sm font-extrabold text-[#134074] uppercase tracking-wide border-b border-slate-100 pb-2 mb-4">
-            Logistics & Capacity
-          </Text>
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Location</Text>
-          <TextInput
-            value={formLocation}
-            onChangeText={setFormLocation}
-            placeholder="venue"
-            placeholderTextColor="#cbd5e1"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 mb-4 bg-[#FCFDFE]"
-          />
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Capacity</Text>
-          <TextInput
-            value={formCapacity}
-            onChangeText={setFormCapacity}
-            placeholder="300"
-            placeholderTextColor="#cbd5e1"
-            keyboardType="number-pad"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 mb-4 bg-[#FCFDFE]"
-          />
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Privacy</Text>
-          <TouchableOpacity 
-            onPress={() => setFormPrivacy(formPrivacy === 'Members Only' ? 'All Members' : 'Members Only')}
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 flex-row justify-between items-center mb-4 bg-[#FCFDFE]"
-          >
-            <Text className="text-sm text-slate-800">{formPrivacy}</Text>
-            <ChevronDown size={14} color="#64748b" />
-          </TouchableOpacity>
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Registration Deadline</Text>
-          <TextInput
-            value={formDeadline}
-            onChangeText={setFormDeadline}
-            placeholder="dd/mm/yyyy"
-            placeholderTextColor="#cbd5e1"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 mb-6 bg-[#FCFDFE]"
-          />
-
-          {/* Section 3: Content */}
-          <Text className="text-sm font-extrabold text-[#134074] uppercase tracking-wide border-b border-slate-100 pb-2 mb-4">
-            Event Content
-          </Text>
-
-          <Text className="text-xs font-extrabold text-slate-600 mb-1.5">Description</Text>
-          <TextInput
-            value={formDescription}
-            onChangeText={setFormDescription}
-            placeholder="Enter event description and guidelines..."
-            placeholderTextColor="#cbd5e1"
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-            className="border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 min-h-[120px] mb-6 bg-[#FCFDFE]"
-          />
-
-          {/* Form Action Buttons */}
-          <View className="space-y-3">
-            <TouchableOpacity 
-              onPress={handleSaveChanges}
-              className="w-full bg-[#3F7E1F] rounded-lg py-3 flex-row justify-center items-center"
-            >
-              <Text className="text-white font-extrabold text-sm">Save Changes</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => setViewState('list')}
-              className="w-full bg-white border border-slate-200 rounded-lg py-3 items-center"
-            >
-              <Text className="text-slate-500 font-extrabold text-sm">Discard Draft</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  const renderActiveSubView = () => {
-    if (viewState === 'event_detail') {
-      return renderEventDetail();
+  const handleViewProfile = (member: Member) => {
+    if (navigation) {
+      navigation.navigate('MemberProfile', {
+        name: member.name,
+        role: member.designation,
+        branch: member.tier === 'PLATINUM' ? 'London Branch' : 'Regional Branch',
+        tierLabel: member.tierLabel,
+        memberId: member.memberId,
+        joinDate: 'Joined: Jan 2021',
+        email: `${member.name.toLowerCase().replace(' ', '.').replace('dr.', '')}@tas-governance.org`,
+        fullIdCode: `${member.memberId}-SJ-TAS`,
+        joinDateFull: 'January 14, 2021',
+        firm: member.company,
+        avatar: member.avatar,
+      });
+    } else {
+      Alert.alert('Member Profile', `Opening profile of ${member.name}`);
     }
-    if (viewState === 'edit_event' || viewState === 'create_event') {
-      return renderEventForm();
-    }
-
-    return subTab === 'members' ? renderMembersList() : renderEventsList();
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white relative">
+    <SafeAreaView style={styles.container}>
       {/* Top Header */}
-      {viewState === 'list' && (
-        <View className="flex-row items-center px-4 py-3 bg-[#E9F0FA] border-b border-blue-100 z-20">
-          <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3">
-            <ArrowLeft size={22} color="#134074" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <ArrowLeft size={22} color="#0D3866" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Directory</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      {/* Segmented Switcher (Members vs Events) */}
+      <View style={styles.switcherContainer}>
+        <View style={styles.switcherTrack}>
+          <TouchableOpacity
+            onPress={() => setSubTab('members')}
+            style={[styles.switcherButton, subTab === 'members' && styles.switcherButtonActive]}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.switcherText, subTab === 'members' && styles.switcherTextActive]}>
+              Members
+            </Text>
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-[#134074]">Directory</Text>
+
+          <TouchableOpacity
+            onPress={() => setSubTab('events')}
+            style={[styles.switcherButton, subTab === 'events' && styles.switcherButtonActive]}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.switcherText, subTab === 'events' && styles.switcherTextActive]}>
+              Events
+            </Text>
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
 
-      {/* Sub tabs navigation (Members vs Events switcher) */}
-      {viewState === 'list' && (
-        <View className="px-4 py-3 bg-[#F8FAFC]">
-          <View className="flex-row bg-[#E2E8F0] p-1 rounded-xl">
-            <TouchableOpacity
-              onPress={() => {
-                setSubTab('members');
-                setSearchQuery('');
-              }}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                subTab === 'members' ? 'bg-[#134074] shadow-sm' : 'bg-transparent'
-              }`}
-            >
-              <Text className={`text-xs font-bold uppercase tracking-wider ${subTab === 'members' ? 'text-white' : 'text-slate-500'}`}>
-                Members
-              </Text>
-            </TouchableOpacity>
+      {/* Main Scroll Content */}
+      <ScrollView 
+        ref={scrollViewRef}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {subTab === 'members' ? (
+          <>
+            {/* Header Titles Row */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.sectionTitle}>Members</Text>
+                <View style={styles.activeDbPill}>
+                  <Text style={styles.activeDbText}>Active Database</Text>
+                </View>
+              </View>
 
-            <TouchableOpacity
-              onPress={() => {
-                setSubTab('events');
-                setSearchQuery('');
-              }}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                subTab === 'events' ? 'bg-[#134074] shadow-sm' : 'bg-transparent'
-              }`}
-            >
-              <Text className={`text-xs font-bold uppercase tracking-wider ${subTab === 'events' ? 'text-white' : 'text-slate-500'}`}>
-                Events
+              <View style={styles.totalMembersContainer}>
+                <Text style={styles.totalMembersLabel}>TOTAL SOCIETY MEMBERS</Text>
+                <Text style={styles.totalMembersValue}>{totalCount}</Text>
+              </View>
+            </View>
+
+            {/* SEARCH REGISTRY CARD */}
+            <View style={styles.searchCard}>
+              <Text style={styles.searchCardLabel}>Search Registry</Text>
+              <View style={styles.searchInputContainer}>
+                <Search size={18} color="#94a3b8" style={{ marginRight: 8 }} />
+                <TextInput
+                  placeholder="Filter by Name, ID, or Professional Designation..."
+                  placeholderTextColor="#94a3b8"
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                  style={styles.searchInput}
+                />
+              </View>
+
+              <Text style={styles.searchCardLabel}>Membership Tier</Text>
+              <View style={styles.tierPillsRow}>
+                {['ALL', 'PLATINUM', 'SENIOR', 'ASSOCIATE', 'STUDENT'].map((tier) => (
+                  <TouchableOpacity
+                    key={tier}
+                    onPress={() => handleTierChange(tier)}
+                    style={[styles.tierPill, selectedTier === tier && styles.tierPillActive]}
+                  >
+                    <Text style={[styles.tierPillText, selectedTier === tier && styles.tierPillTextActive]}>
+                      {tier}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* MEMBERS LIST */}
+            {paginatedMembers.map((member) => (
+              <View key={member.id} style={styles.memberCard}>
+                {/* Profile Header Block */}
+                <View style={styles.memberHeader}>
+                  <TouchableOpacity onPress={() => handleViewProfile(member)} activeOpacity={0.8}>
+                    <Image
+                      source={member.avatar}
+                      style={[
+                        styles.memberAvatar,
+                        member.hasGreenBorder && { borderColor: '#AEE874', borderWidth: 2 }
+                      ]}
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.memberInfo}>
+                    {/* Tier Tag */}
+                    <View 
+                      style={[
+                        styles.tierTag,
+                        member.tier === 'PLATINUM' && styles.platinumBadge,
+                        member.tier === 'SENIOR' && styles.seniorBadge,
+                        member.tier === 'ASSOCIATE' && styles.associateBadge,
+                      ]}
+                    >
+                      <Text 
+                        style={[
+                          styles.tierTagText,
+                          member.tier === 'PLATINUM' && { color: '#2B5713' },
+                          member.tier === 'SENIOR' && { color: '#FFFFFF' },
+                          member.tier === 'ASSOCIATE' && { color: '#0D3866' },
+                        ]}
+                      >
+                        {member.tierLabel}
+                      </Text>
+                    </View>
+                    
+                    <TouchableOpacity onPress={() => handleViewProfile(member)}>
+                      <Text style={styles.memberName}>{member.name}</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.memberRole}>{member.designation}, {member.company}</Text>
+                    
+                    <View style={styles.memberIdRow}>
+                      <IdCard size={14} color="#94a3b8" style={{ marginRight: 6 }} />
+                      <Text style={styles.memberIdText}>ID: {member.memberId}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Actions row */}
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity 
+                    style={styles.viewProfileBtn}
+                    onPress={() => handleViewProfile(member)}
+                  >
+                    <Text style={styles.viewProfileBtnText}>VIEW PROFILE</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.downloadBtn}
+                    onPress={() => Alert.alert('Download Credentials', `Downloading credential sheet for ${member.name}`)}
+                  >
+                    <Download size={14} color="#0D3866" style={{ marginRight: 6 }} />
+                    <Text style={styles.downloadBtnText}>Download</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.mailBtn}
+                    onPress={() => Alert.alert('Secure Message', `Initiating secured channel to ${member.name}`)}
+                  >
+                    <Mail size={16} color="#0D3866" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+
+            {/* PAGINATION PANEL */}
+            <View style={styles.paginationPanel}>
+              <Text style={styles.paginationInfo}>
+                Showing {totalCount > 0 ? startIndex + 1 : 0}-{endIndex} of {totalCount} results
               </Text>
-            </TouchableOpacity>
+              <View style={styles.pageNumbersRow}>
+                <TouchableOpacity 
+                  style={styles.arrowPageBtn}
+                  onPress={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <Text style={[styles.pageArrow, currentPage === 1 && { color: '#cbd5e1' }]}>‹</Text>
+                </TouchableOpacity>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <TouchableOpacity
+                    key={pageNum}
+                    style={[
+                      styles.pageNumberBtn,
+                      currentPage === pageNum && styles.pageNumberBtnActive
+                    ]}
+                    onPress={() => setCurrentPage(pageNum)}
+                  >
+                    <Text style={currentPage === pageNum ? styles.pageNumberTextActive : styles.pageNumberText}>
+                      {pageNum}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity 
+                  style={styles.arrowPageBtn}
+                  onPress={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <Text style={[styles.pageArrow, currentPage === totalPages && { color: '#cbd5e1' }]}>›</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.eventsContainer}>
+            {/* Header Title */}
+            <Text style={styles.eventsPageTitle}>Upcoming Events</Text>
+            <Text style={styles.eventsPageSubtitle}>
+              Manage society activities and administrative conferences.
+            </Text>
+
+            {/* SEARCH EVENTS CARD */}
+            <View style={styles.searchCard}>
+              <Text style={styles.searchCardLabel}>Search Events</Text>
+              <View style={styles.searchInputContainer}>
+                <Search size={18} color="#94a3b8" style={{ marginRight: 8 }} />
+                <TextInput
+                  placeholder="Filter by Event Name, Date, or Location..."
+                  placeholderTextColor="#94a3b8"
+                  value={eventSearchQuery}
+                  onChangeText={setEventSearchQuery}
+                  style={styles.searchInput}
+                />
+              </View>
+            </View>
+
+            {/* EVENT 1: FLAGSHIP */}
+            {eventMatches('Annual Tax Conference 2024', 'AUG 15-17, 2024', 'flagship', 'Grand Hyatt, Texcity') && (
+              <View style={styles.eventCardPremium}>
+                <View style={styles.eventImageContainer}>
+                  <Image
+                    source={require('../../assets/annual_conference.png')}
+                    style={styles.eventHeroImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.flagshipTag}>
+                    <Text style={styles.flagshipTagText}>FLAGSHIP</Text>
+                  </View>
+                </View>
+
+                <View style={styles.eventPremiumBody}>
+                  <View style={styles.eventRowJustified}>
+                    <Text style={styles.eventPremiumDate}>AUG 15-17, 2024</Text>
+                    <View style={styles.confirmedPill}>
+                      <Text style={styles.confirmedText}>CONFIRMED</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.eventPremiumTitle}>Annual Tax Conference 2024</Text>
+
+                  <View style={styles.eventDetailRow}>
+                    <MapPin size={14} color="#64748b" style={{ marginRight: 6 }} />
+                    <Text style={styles.eventDetailText}>Grand Hyatt, Texcity</Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Users size={14} color="#64748b" style={{ marginRight: 6 }} />
+                    <Text style={styles.eventDetailText}>450 Registered</Text>
+                  </View>
+
+                  {/* Event Actions */}
+                  <View style={styles.eventActionsRow}>
+                    <TouchableOpacity
+                      style={styles.cancelEventBtn}
+                      onPress={() => Alert.alert('Cancel Event', 'Are you sure you want to cancel this event?')}
+                    >
+                      <Text style={styles.cancelEventText}>Cancel Event</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.editEventBtn}
+                      onPress={() => {
+                        if (navigation) {
+                          navigation.navigate('CreateEvent', {
+                            isEditing: true,
+                            title: 'Annual Tax Conference 2024',
+                            date: '15/08/2024',
+                            startTime: '09:00 AM',
+                            location: 'Grand Hyatt, Texcity',
+                            capacity: '450',
+                            privacy: 'Members Only',
+                            deadline: '10/08/2024',
+                            description: 'The 2024 Annual Tax Summit is the premier gathering for accounting professionals, providing deep insights into new legislative changes, international compliance standards, and digital transformation in fiscal reporting.',
+                          });
+                        }
+                      }}
+                    >
+                      <Edit2 size={14} color="white" style={{ marginRight: 6 }} />
+                      <Text style={styles.editEventText}>Edit Event</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* EVENT 2: ETHICS & COMPLIANCE */}
+            {eventMatches('Ethics & Compliance Seminar', 'SEP 05, 2024', 'Mandatory training for all society members regarding updated 2024 frameworks.', 'TAS Connect Platform') && (
+              <View style={styles.eventCardPremium}>
+                <View style={styles.eventPremiumBody}>
+                  <View style={styles.eventHeaderRow}>
+                    <View style={[styles.eventIconBox, { backgroundColor: '#BEF264' }]}>
+                      <Laptop size={18} color="#4D7C0F" />
+                    </View>
+                    <View style={styles.confirmedPillBlue}>
+                      <Text style={styles.confirmedTextBlue}>OPEN</Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.eventPremiumDate, { marginTop: 10 }]}>SEP 05, 2024</Text>
+                  <Text style={styles.eventPremiumTitle}>Ethics & Compliance Seminar</Text>
+                  <Text style={styles.eventPremiumDesc}>
+                    Mandatory training for all society members regarding updated 2024 frameworks.
+                  </Text>
+
+                  <View style={[styles.eventDetailRow, { marginBottom: 14 }]}>
+                    <Link size={14} color="#64748b" style={{ marginRight: 6 }} />
+                    <Text style={styles.eventLinkText}>TAS Connect Platform</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.editDetailsBtn}
+                    onPress={() => {
+                      if (navigation) {
+                        navigation.navigate('CreateEvent', {
+                          isEditing: true,
+                          title: 'Ethics & Compliance Seminar',
+                          date: '05/09/2024',
+                          startTime: '10:00 AM',
+                          location: 'TAS Connect Platform',
+                          capacity: '300',
+                          privacy: 'Members Only',
+                          deadline: '01/09/2024',
+                          description: 'Mandatory training for all society members regarding updated 2024 frameworks.',
+                        });
+                      }
+                    }}
+                  >
+                    <Edit2 size={14} color="#0D3866" style={{ marginRight: 6 }} />
+                    <Text style={styles.editDetailsText}>Edit Details</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* EVENT 3: LOCAL CHAPTER NETWORKING */}
+            {eventMatches('Local Chapter Networking', 'OCT 12, 2024', 'Regional mixer for senior partners and upcoming associates.', 'Riverside Executive Lounge') && (
+              <View style={styles.eventCardPremium}>
+                <View style={styles.eventPremiumBody}>
+                  <View style={styles.eventHeaderRow}>
+                    <View style={[styles.eventIconBox, { backgroundColor: '#EFF6FF' }]}>
+                      <Users size={18} color="#1E40AF" />
+                    </View>
+                    <View style={styles.confirmedPillGray}>
+                      <Text style={styles.confirmedTextGray}>PLANNING</Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.eventPremiumDate, { marginTop: 10 }]}>OCT 12, 2024</Text>
+                  <Text style={styles.eventPremiumTitle}>Local Chapter Networking</Text>
+                  <Text style={styles.eventPremiumDesc}>
+                    Regional mixer for senior partners and upcoming associates.
+                  </Text>
+
+                  <View style={[styles.eventDetailRow, { marginBottom: 14 }]}>
+                    <MapPin size={14} color="#64748b" style={{ marginRight: 6 }} />
+                    <Text style={styles.eventDetailText}>Riverside Executive Lounge</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.editDetailsBtn}
+                    onPress={() => {
+                      if (navigation) {
+                        navigation.navigate('CreateEvent', {
+                          isEditing: true,
+                          title: 'Local Chapter Networking',
+                          date: '12/10/2024',
+                          startTime: '06:00 PM',
+                          location: 'Riverside Executive Lounge',
+                          capacity: '150',
+                          privacy: 'Members Only',
+                          deadline: '05/10/2024',
+                          description: 'Regional mixer for senior partners and upcoming associates.',
+                        });
+                      }
+                    }}
+                  >
+                    <Edit2 size={14} color="#0D3866" style={{ marginRight: 6 }} />
+                    <Text style={styles.editDetailsText}>Manage Planning</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* EVENT 4: PARTICIPATION GOAL */}
+            <View style={styles.goalCard}>
+              <Text style={styles.goalTitle}>Annual Participation Goal</Text>
+              <Text style={styles.goalText}>
+                You're at 82% of the targeted annual event engagement. Reaching 90% unlocks the Regional Chapter Grant.
+              </Text>
+              <View style={styles.goalStatsRow}>
+                <View style={styles.goalStatBox}>
+                  <Text style={styles.goalStatValue}>1.2k</Text>
+                  <Text style={styles.goalStatLabel}>TOTAL ATTENDEES</Text>
+                </View>
+                <View style={styles.goalStatBox}>
+                  <Text style={styles.goalStatValue}>14</Text>
+                  <Text style={styles.goalStatLabel}>EVENTS YTD</Text>
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Render Main Content */}
-      {renderActiveSubView()}
+        {/* Bottom Navigation space */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
 
-      {/* Floating Add Event Button (Only in list view under Events tab) */}
-      {viewState === 'list' && subTab === 'events' && (
+      {/* Floating Scroll to Top */}
+      {showScrollTop && (
         <TouchableOpacity
-          onPress={handleCreateEventPress}
+          onPress={scrollToTop}
           activeOpacity={0.85}
-          style={styles.fabButton}
-          className="bg-[#70B62C] rounded-full justify-center items-center shadow-lg"
+          style={[
+            styles.scrollTopButton,
+            subTab === 'members' ? { bottom: 90 } : { bottom: 156 }
+          ]}
         >
-          <Plus size={26} color="white" />
+          <ArrowUp size={20} color="white" />
         </TouchableOpacity>
       )}
 
-      {/* Bottom Navigation */}
-      {viewState === 'list' && !navigation && (
-        <View className="absolute bottom-0 left-0 right-0 flex-row justify-around items-center bg-white border-t border-slate-200 py-2.5 z-20">
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('feed')}>
-            <Home size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('analytics')}>
-            <BarChart3 size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Analytics</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('posts_all')}>
-            <FileText size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Post</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => {}}>
-            <Users size={24} color="#94a3b8" />
-            <Text className="text-[10px] mt-0.5 font-medium text-slate-400">Directory</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => {}}>
-            <View style={{ width: 22, height: 22, backgroundColor: '#70B62C', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }}>
-              <Text className="text-white text-[10px] font-bold">🔍</Text>
-            </View>
-            <Text className="text-[10px] mt-0.5 font-bold text-[#70B62C]">Directory</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Floating Action Button (FAB) */}
+      {subTab === 'events' && (
+        <TouchableOpacity
+          style={styles.fabButton}
+          onPress={() => {
+            if (navigation) {
+              navigation.navigate('CreateEvent');
+            } else {
+              Alert.alert('Create Event', 'Opening form to create a new event...');
+            }
+          }}
+          activeOpacity={0.85}
+        >
+          <Plus size={24} color="white" />
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    height: 56,
+    backgroundColor: '#E9F0FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  switcherContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  switcherTrack: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    padding: 3,
+  },
+  switcherButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  switcherButtonActive: {
+    backgroundColor: '#0D3866',
+  },
+  switcherText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  switcherTextActive: {
+    color: '#FFFFFF',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 120,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    flexWrap: 'nowrap',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  activeDbPill: {
+    backgroundColor: '#AEE874',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  activeDbText: {
+    color: '#2B5713',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  totalMembersContainer: {
+    alignItems: 'flex-end',
+    flexShrink: 1,
+  },
+  totalMembersLabel: {
+    fontSize: 7.5,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.3,
+  },
+  totalMembersValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginTop: 1,
+  },
+  searchCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  searchCardLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 8,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#334D6E',
+    padding: 0,
+  },
+  tierPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tierPill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tierPillActive: {
+    backgroundColor: '#0D3866',
+    borderColor: '#0D3866',
+  },
+  tierPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  tierPillTextActive: {
+    color: '#FFFFFF',
+  },
+  memberCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  memberHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  memberAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  memberInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  tierTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  platinumBadge: {
+    backgroundColor: '#AEE874', // Green
+  },
+  seniorBadge: {
+    backgroundColor: '#1E40AF', // Dark blue
+  },
+  associateBadge: {
+    backgroundColor: '#DBEAFE', // Soft blue
+  },
+  tierTagText: {
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  memberName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  memberRole: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  memberIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  memberIdText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 12,
+    gap: 8,
+  },
+  viewProfileBtn: {
+    flex: 1.2,
+    backgroundColor: '#0D3866',
+    borderRadius: 6,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  viewProfileBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  downloadBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#0D3866',
+    borderRadius: 6,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadBtnText: {
+    color: '#0D3866',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  mailBtn: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationPanel: {
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  paginationInfo: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  pageNumbersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  arrowPageBtn: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  pageArrow: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: 'bold',
+  },
+  pageNumberBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pageNumberBtnActive: {
+    backgroundColor: '#0D3866',
+  },
+  pageNumberText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  pageNumberTextActive: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  pageEllipsis: {
+    fontSize: 14,
+    color: '#94a3b8',
+    paddingHorizontal: 4,
+  },
+  eventCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  eventDateText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#467A18',
+    marginBottom: 4,
+  },
+  eventTitleText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  eventDetailsText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  scrollTopButton: {
+    position: 'absolute',
+    bottom: 156,
+    right: 22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0D3866',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 99,
+  },
   fabButton: {
     position: 'absolute',
-    bottom: 85,
-    right: 20,
-    width: 54,
-    height: 54,
+    bottom: 90,
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#70B62C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
     zIndex: 99,
+  },
+  eventsContainer: {
+    paddingHorizontal: 0,
+    marginTop: 4,
+  },
+  eventsPageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 6,
+  },
+  eventsPageSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  eventCardPremium: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  eventImageContainer: {
+    height: 160,
+    width: '100%',
+    position: 'relative',
+  },
+  eventHeroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  flagshipTag: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: '#0D3866',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 4,
+  },
+  flagshipTagText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  eventPremiumBody: {
+    padding: 16,
+  },
+  eventRowJustified: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  eventPremiumDate: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#65A30D',
+  },
+  confirmedPill: {
+    backgroundColor: '#BEF264',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  confirmedText: {
+    color: '#3F6212',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  eventPremiumTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 12,
+  },
+  eventDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  eventActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 16,
+  },
+  cancelEventBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelEventText: {
+    color: '#0D3866',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  editEventBtn: {
+    flex: 1,
+    backgroundColor: '#0D3866',
+    borderRadius: 8,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editEventText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  eventHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  eventIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmedPillBlue: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  confirmedTextBlue: {
+    color: '#1E40AF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  confirmedPillGray: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  confirmedTextGray: {
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  eventPremiumDesc: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  eventLinkText: {
+    fontSize: 12,
+    color: '#0D3866',
+    fontWeight: '600',
+  },
+  editDetailsBtn: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#0D3866',
+    borderRadius: 8,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editDetailsText: {
+    color: '#0D3866',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  goalCard: {
+    backgroundColor: '#0D3866',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  goalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  goalText: {
+    fontSize: 13,
+    color: '#93C5FD',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  goalStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  goalStatBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  goalStatValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  goalStatLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#93C5FD',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
 });

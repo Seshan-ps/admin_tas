@@ -16,7 +16,6 @@ import {
 import {
   User,
   MessageSquare,
-  ChevronRight,
   Users,
   BarChart3,
   Calendar,
@@ -25,20 +24,13 @@ import {
   Send,
   ShieldCheck,
   MoreHorizontal,
-  Video,
-  MapPin,
-  TrendingUp,
+  ChevronRight,
+  Bookmark,
+  Share2,
+  ThumbsUp,
 } from 'lucide-react-native';
-import { ProfileScreen } from './ProfileScreen';
-import { AnalyticsScreen } from './AnalyticsScreen';
-import { PostManagementScreen } from './PostManagementScreen';
-import { DirectoryScreen } from './DirectoryScreen';
 
 const { width } = Dimensions.get('window');
-
-type ActiveTab = 'feed' | 'analytics' | 'directory' | 'chat' | 'posts_all' | 'profile';
-type DirectorySubTab = 'users' | 'events';
-type ProfileUser = 'admin' | 'elena';
 
 interface HomeScreenProps {
   onSignOut: () => void;
@@ -46,16 +38,9 @@ interface HomeScreenProps {
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onSignOut, navigation }) => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('feed');
-  const [directorySubTab, setDirectorySubTab] = useState<DirectorySubTab>('users');
-  const [profileUser, setProfileUser] = useState<ProfileUser>('elena');
   const [showScrollTop, setShowScrollTop] = useState(false);
-  
-  // Broadcast states
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
-
-  // Scroll ref
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Monitor scroll height to show/hide the back to top button
@@ -81,757 +66,596 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onSignOut, navigation })
     setBroadcastMessage('');
   };
 
-  const viewUserProfile = (user: ProfileUser) => {
-    if (navigation && user === 'admin') {
-      navigation.navigate('Profile');
-    } else {
-      setProfileUser(user);
-      setActiveTab('profile');
-    }
-  };
-
-  // HEADER BAR
-  const renderHeader = () => {
-    return (
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-100 z-20">
-        {/* Profile left */}
-        <TouchableOpacity onPress={() => viewUserProfile('admin')}>
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Top Header */}
+      <View style={styles.header}>
+        {/* Profile Avatar (Left) */}
+        <TouchableOpacity 
+          onPress={() => navigation?.navigate('Profile')}
+          activeOpacity={0.8}
+        >
           <Image
             source={require('../../assets/admin_profile.png')}
-            className="w-10 h-10 rounded-full border border-blue-100"
+            style={styles.avatar}
           />
         </TouchableOpacity>
 
-        {/* Logo center */}
+        {/* Small Center Logo */}
         <Image
-          source={require('../../assets/logo.png')}
-          className="w-28 h-8"
+          source={require('../../assets/logo_icon.png')}
+          style={styles.headerLogo}
           resizeMode="contain"
         />
 
-        {/* Message right */}
-        <TouchableOpacity onPress={() => navigation ? navigation.navigate('Messages') : setActiveTab('chat')}>
-          <MessageSquare size={24} color="#134074" />
+        {/* Chat / Messages Button (Right) */}
+        <TouchableOpacity 
+          onPress={() => navigation?.navigate('Messages')}
+          activeOpacity={0.8}
+          style={styles.chatButton}
+        >
+          <MessageSquare size={22} color="#134074" />
         </TouchableOpacity>
       </View>
-    );
-  };
 
-  // FOOTER NAVIGATION BAR
-  const renderFooterNav = () => {
-    return (
-      <View className="flex-row justify-around items-center bg-white border-t border-slate-200 py-2.5 z-20">
-        {/* Home */}
-        <TouchableOpacity 
-          className="items-center" 
-          onPress={() => { setActiveTab('feed'); scrollToTop(); }}
-        >
-          <HomeIcon active={activeTab === 'feed'} />
-          <Text className={`text-[10px] mt-0.5 font-medium ${activeTab === 'feed' ? 'text-[#70B62C]' : 'text-slate-400'}`}>
-            Home
-          </Text>
-        </TouchableOpacity>
-
-        {/* Analytics (Financials) */}
-        <TouchableOpacity 
-          className="items-center" 
-          onPress={() => setActiveTab('analytics')}
-        >
-          <BarChart3 
-            size={24} 
-            color={activeTab === 'analytics' ? '#134074' : '#94a3b8'} 
-          />
-          <Text className={`text-[10px] mt-0.5 font-medium ${activeTab === 'analytics' ? 'text-[#134074]' : 'text-slate-400'}`}>
-            Analytics
-          </Text>
-        </TouchableOpacity>
-
-        {/* Directory (Events) */}
-        <TouchableOpacity 
-          className="items-center" 
-          onPress={() => {
-            setActiveTab('directory');
-            setDirectorySubTab('events');
-          }}
-        >
-          <Calendar 
-            size={24} 
-            color={activeTab === 'directory' && directorySubTab === 'events' ? '#134074' : '#94a3b8'} 
-          />
-          <Text className={`text-[10px] mt-0.5 font-medium ${activeTab === 'directory' && directorySubTab === 'events' ? 'text-[#134074]' : 'text-slate-400'}`}>
-            Events
-          </Text>
-        </TouchableOpacity>
-
-        {/* Directory (Users) */}
-        <TouchableOpacity 
-          className="items-center" 
-          onPress={() => {
-            setActiveTab('directory');
-            setDirectorySubTab('users');
-          }}
-        >
-          <Users 
-            size={24} 
-            color={activeTab === 'directory' && directorySubTab === 'users' ? '#134074' : '#94a3b8'} 
-          />
-          <Text className={`text-[10px] mt-0.5 font-medium ${activeTab === 'directory' && directorySubTab === 'users' ? 'text-[#134074]' : 'text-slate-400'}`}>
-            Directory
-          </Text>
-        </TouchableOpacity>
-
-        {/* Post Management */}
-        <TouchableOpacity 
-          className="items-center" 
-          onPress={() => setActiveTab('posts_all')}
-        >
-          <FileText 
-            size={24} 
-            color={activeTab === 'posts_all' ? '#134074' : '#94a3b8'} 
-          />
-          <Text className={`text-[10px] mt-0.5 font-medium ${activeTab === 'posts_all' ? 'text-[#134074]' : 'text-slate-400'}`}>
-            Posts
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  // Helper custom Home icon styling
-  const HomeIcon = ({ active }: { active: boolean }) => {
-    return (
-      <View style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }}>
-        <View 
-          style={{
-            width: 20,
-            height: 18,
-            borderWidth: 2,
-            borderColor: active ? '#70B62C' : '#94a3b8',
-            borderRadius: 2,
-            position: 'relative'
-          }}
-        >
-          <View 
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 5,
-              width: 6,
-              height: 8,
-              backgroundColor: active ? '#70B62C' : '#94a3b8'
-            }}
-          />
-        </View>
-      </View>
-    );
-  };
-
-  // VIEW 1: HOME FEED VIEW
-  const renderFeedView = () => {
-    return (
+      {/* Main Feed Content */}
       <ScrollView
         ref={scrollViewRef}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        showsVerticalScrollIndicator={true}
-        className="flex-1 bg-[#F8FAFC]"
-        contentContainerStyle={{ paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+        style={styles.feedScroll}
+        contentContainerStyle={styles.feedContentContainer}
       >
-        {/* QUICK ACTIONS CARD */}
-        <View className="bg-white m-3 p-4 rounded-2xl border border-slate-100 shadow-sm">
-          <Text className="text-base font-bold text-[#134074] mb-3">Quick Actions</Text>
-          <View className="space-y-2.5">
+        {/* SECTION 1: QUICK ACTIONS */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Quick Actions</Text>
+          
+          <View style={styles.quickActionsContainer}>
             {/* User Management */}
             <TouchableOpacity 
-              onPress={() => {
-                if (navigation) {
-                  navigation.navigate('Directory');
-                } else {
-                  setActiveTab('directory');
-                  setDirectorySubTab('users');
-                }
-              }}
-              className="flex-row items-center border border-slate-200/80 rounded-xl p-3 bg-[#FCFDFE] active:bg-blue-50/20"
+              style={styles.actionRow}
+              onPress={() => navigation?.navigate('Directory')}
+              activeOpacity={0.7}
             >
-              <View className="bg-[#134074] p-2 rounded-lg mr-3">
+              <View style={styles.actionIconWrapper}>
                 <Users size={18} color="white" />
               </View>
-              <Text className="text-slate-800 font-semibold text-[15px]">User Management</Text>
-              <ChevronRight size={16} color="#64748b" className="ml-auto" />
+              <Text style={styles.actionText}>User Management</Text>
             </TouchableOpacity>
 
             {/* Financial Reports */}
             <TouchableOpacity 
-              onPress={() => {
-                if (navigation) {
-                  navigation.navigate('Analytics');
-                } else {
-                  setActiveTab('analytics');
-                }
-              }}
-              className="flex-row items-center border border-slate-200/80 rounded-xl p-3 bg-[#FCFDFE] active:bg-blue-50/20"
+              style={styles.actionRow}
+              onPress={() => navigation?.navigate('Analytics')}
+              activeOpacity={0.7}
             >
-              <View className="bg-[#134074] p-2 rounded-lg mr-3">
+              <View style={styles.actionIconWrapper}>
                 <BarChart3 size={18} color="white" />
               </View>
-              <Text className="text-slate-800 font-semibold text-[15px]">Financial Reports</Text>
-              <ChevronRight size={16} color="#64748b" className="ml-auto" />
+              <Text style={styles.actionText}>Financial Reports</Text>
             </TouchableOpacity>
 
             {/* Event Management */}
             <TouchableOpacity 
-              onPress={() => {
-                if (navigation) {
-                  navigation.navigate('Events');
-                } else {
-                  setActiveTab('directory');
-                  setDirectorySubTab('events');
-                }
-              }}
-              className="flex-row items-center border border-slate-200/80 rounded-xl p-3 bg-[#FCFDFE] active:bg-blue-50/20"
+              style={styles.actionRow}
+              onPress={() => navigation?.navigate('Directory', { subTab: 'events' })}
+              activeOpacity={0.7}
             >
-              <View className="bg-[#134074] p-2 rounded-lg mr-3">
+              <View style={styles.actionIconWrapper}>
                 <Calendar size={18} color="white" />
               </View>
-              <Text className="text-slate-800 font-semibold text-[15px]">Event Management</Text>
-              <ChevronRight size={16} color="#64748b" className="ml-auto" />
+              <Text style={styles.actionText}>Event Management</Text>
             </TouchableOpacity>
 
             {/* Post Management */}
             <TouchableOpacity 
-              onPress={() => {
-                if (navigation) {
-                  navigation.navigate('Posts');
-                } else {
-                  setActiveTab('posts_all');
-                }
-              }}
-              className="flex-row items-center border border-slate-200/80 rounded-xl p-3 bg-[#FCFDFE] active:bg-blue-50/20"
+              style={styles.actionRow}
+              onPress={() => navigation?.navigate('Posts')}
+              activeOpacity={0.7}
             >
-              <View className="bg-[#134074] p-2 rounded-lg mr-3">
+              <View style={styles.actionIconWrapper}>
                 <FileText size={18} color="white" />
               </View>
-              <Text className="text-slate-800 font-semibold text-[15px]">Post Management</Text>
-              <ChevronRight size={16} color="#64748b" className="ml-auto" />
+              <Text style={styles.actionText}>Post Management</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* FEED ITEM 1 (PROMOTED Rollout Post) */}
-        <View className="bg-white mb-3 border-y border-slate-100 p-4">
-          {/* Header */}
-          <View className="flex-row items-center mb-3">
-            <Image
-              source={require('../../assets/logo.png')}
-              className="w-10 h-10 rounded-full border border-blue-50 bg-[#F0F7FF]"
-              resizeMode="contain"
-            />
-            <View className="ml-2.5">
-              <Text className="text-[15px] font-bold text-[#134074]">Texcity Accountants Society</Text>
-              <Text className="text-[11px] text-slate-400">Promoted • 10,240 members</Text>
-            </View>
+        {/* SECTION 2: SYSTEM UPDATE CARD (FEED 1) */}
+        <View style={styles.card}>
+          {/* Header Row */}
+          <View style={styles.feedHeaderRow}>
+            <TouchableOpacity 
+              onPress={() => navigation?.navigate('MemberProfile', {
+                name: 'Dr. Alistair Vance',
+                role: 'Chief Financial Auditor',
+                branch: 'London Branch',
+                tierLabel: 'Platinum Member',
+                memberId: 'TAS-9920-PL',
+                joinDate: 'Joined: Jan 2015',
+                email: 'a.vance@tas-governance.org',
+                fullIdCode: '9920-AV-TAS',
+                joinDateFull: 'January 14, 2015',
+                firm: 'Global Trust',
+                avatar: require('../../assets/admin_profile.png'),
+              })}
+              activeOpacity={0.8}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+            >
+              <Image
+                source={require('../../assets/logo_icon.png')}
+                style={styles.feedAvatar}
+                resizeMode="contain"
+              />
+              <View style={styles.feedHeaderTexts}>
+                <Text style={styles.feedAuthorName}>Texcity Accountants Society</Text>
+                <Text style={styles.feedSubtitle}>Promoted • 10,240 members</Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Text */}
-          <Text className="text-slate-700 text-[14px] leading-relaxed mb-3">
-            We are pleased to announce the successful rollout of the <Text className="font-bold text-[#134074]">Q3 Security Patch</Text> for the national administration portal. All member accounts now benefit from enhanced biometric authentication layers. Ensure your regional office has updated their node.
+          {/* Post Text */}
+          <Text style={styles.postBodyText}>
+            We are pleased to announce the successful rollout of the <Text style={styles.boldText}>Q3 Security Patch</Text> for the national administration portal. All member accounts now benefit from enhanced biometric authentication layers. Ensure your regional office has updated their node.
           </Text>
 
-          {/* Server Room Graphic */}
-          <View className="relative rounded-xl overflow-hidden mb-3 border border-slate-100">
+          {/* Post Image with tag */}
+          <View style={styles.postImageContainer}>
             <Image
               source={require('../../assets/server_room_update.png')}
-              className="w-full h-48"
+              style={styles.postImage}
               resizeMode="cover"
             />
-            <View className="absolute bottom-2 left-2 bg-[#134074]/80 px-2 py-1 rounded">
-              <Text className="text-white text-[10px] font-bold">System Update 4.2.0</Text>
+            <View style={styles.imageOverlayTag}>
+              <Text style={styles.overlayTagText}>System Update 4.2.0</Text>
             </View>
           </View>
 
-          {/* Actions Bar */}
-          <View className="flex-row items-center justify-between border-t border-slate-50 pt-2.5 mt-1">
-            <View className="flex-row items-center space-x-4">
-              <TouchableOpacity className="flex-row items-center space-x-1">
-                <Text className="text-slate-400">👍</Text>
-                <Text className="text-[12px] text-slate-500 font-medium">42</Text>
+          {/* Interaction Row */}
+          <View style={styles.interactionRow}>
+            <View style={styles.leftInteractionGroup}>
+              <TouchableOpacity style={styles.interactionButton}>
+                <ThumbsUp size={16} color="#64748b" />
+                <Text style={styles.interactionCount}>42</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="flex-row items-center space-x-1">
+              <TouchableOpacity style={styles.interactionButton}>
                 <MessageSquare size={16} color="#64748b" />
-                <Text className="text-[12px] text-slate-500 font-medium">12</Text>
+                <Text style={styles.interactionCount}>12</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity>
-              <Text className="text-slate-400 text-base">🔗</Text>
+            <TouchableOpacity style={styles.interactionButton}>
+              <Share2 size={16} color="#64748b" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* FEED ITEM 2 (Elena Rodriguez post) */}
-        <View className="bg-white mb-3 border-y border-slate-100 p-4">
-          {/* Header */}
-          <View className="flex-row items-center mb-3">
-            <TouchableOpacity onPress={() => viewUserProfile('elena')}>
+        {/* SECTION 3: ELENA POST CARD (FEED 2) */}
+        <View style={styles.card}>
+          {/* Header Row */}
+          <View style={styles.feedHeaderRow}>
+            <TouchableOpacity 
+              onPress={() => navigation?.navigate('MemberProfile', {
+                name: 'Elena Rodriguez',
+                role: 'Partner',
+                branch: 'Rodriguez & Assoc.',
+                tierLabel: 'Senior Fellow',
+                memberId: 'TAS-4412-SR',
+                joinDate: 'Joined: Mar 2018',
+                email: 'elena.rodriguez@tas-governance.org',
+                fullIdCode: '4412-ER-TAS',
+                joinDateFull: 'March 10, 2018',
+                firm: 'Rodriguez & Assoc.',
+                avatar: require('../../assets/elena_profile.png'),
+              })}
+              activeOpacity={0.8}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+            >
               <Image
                 source={require('../../assets/elena_profile.png')}
-                className="w-10 h-10 rounded-full border border-blue-50"
+                style={styles.feedUserAvatar}
               />
+              <View style={styles.feedHeaderTexts}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.feedAuthorName}>Elena Rodriguez, CPA</Text>
+                  <Text style={styles.timeTag}>2h ago</Text>
+                </View>
+                <Text style={styles.feedSubtitle}>Regional Director at TAS South</Text>
+              </View>
             </TouchableOpacity>
-            <View className="ml-2.5">
-              <TouchableOpacity onPress={() => viewUserProfile('elena')}>
-                <Text className="text-[15px] font-bold text-slate-800">Elena Rodriguez, CPA</Text>
-              </TouchableOpacity>
-              <Text className="text-[11px] text-slate-500">Regional Director at TAS South</Text>
-            </View>
-            <Text className="text-[11px] text-slate-400 ml-auto">2h ago</Text>
           </View>
 
-          {/* Text */}
-          <Text className="text-slate-700 text-[14px] leading-relaxed mb-3">
+          {/* Post Text */}
+          <Text style={styles.postBodyText}>
             Is anyone else observing a significant increase in automated reconciliation errors following the latest API update? We've had to revert to manual validation for three major enterprise audits this morning.
           </Text>
 
           {/* Quote Block */}
-          <View className="bg-emerald-50/40 border-l-4 border-emerald-500 p-3 rounded-r-xl mb-3">
-            <Text className="text-emerald-700 italic text-[13px] leading-relaxed font-medium">
+          <View style={styles.quoteCard}>
+            <Text style={styles.quoteText}>
               "Maintaining fiscal integrity requires human oversight, especially during transition phases."
             </Text>
           </View>
 
-          {/* Actions Bar */}
-          <View className="flex-row items-center justify-between border-t border-slate-50 pt-2.5 mt-1">
-            <View className="flex-row items-center space-x-4">
-              <TouchableOpacity className="flex-row items-center space-x-1">
-                <Text className="text-slate-400">👍</Text>
-                <Text className="text-[12px] text-slate-500 font-medium">8</Text>
+          {/* Interaction Row */}
+          <View style={styles.interactionRow}>
+            <View style={styles.leftInteractionGroup}>
+              <TouchableOpacity style={styles.interactionButton}>
+                <ThumbsUp size={16} color="#4D831E" fill="#E8F5E9" />
+                <Text style={[styles.interactionCount, { color: '#4D831E' }]}>8</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="flex-row items-center space-x-1">
+              <TouchableOpacity style={styles.interactionButton}>
                 <MessageSquare size={16} color="#64748b" />
-                <Text className="text-[12px] text-slate-500 font-medium">24</Text>
+                <Text style={styles.interactionCount}>24</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity>
-              <Text className="text-slate-400">🔖</Text>
+            <TouchableOpacity style={styles.interactionButton}>
+              <Bookmark size={16} color="#64748b" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* FEED ITEM 3: UPCOMING SOCIETY EVENTS */}
-        <View className="bg-white mb-3 border-y border-slate-100 p-4">
-          <Text className="text-base font-bold text-[#134074] mb-3">Upcoming Society Events</Text>
-          <View className="space-y-4">
-            {/* Event 1 */}
-            <View className="flex-row">
-              <View className="items-center justify-center bg-blue-50 rounded-lg p-2.5 w-16 h-16 border border-blue-100">
-                <Text className="text-[10px] uppercase font-bold text-[#134074] tracking-wider">Oct</Text>
-                <Text className="text-xl font-extrabold text-[#134074]">14</Text>
-              </View>
-              <View className="ml-3 justify-center flex-1">
-                <Text className="text-[15px] font-bold text-slate-800">Tax Ethics Round-Table</Text>
-                <Text className="text-[12px] text-slate-500 mt-0.5">Virtual • 148 Administrators Attending</Text>
-              </View>
-            </View>
-
-            {/* Event 2 */}
-            <View className="flex-row">
-              <View className="items-center justify-center bg-emerald-50 rounded-lg p-2.5 w-16 h-16 border border-emerald-100">
-                <Text className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">Oct</Text>
-                <Text className="text-xl font-extrabold text-emerald-700">22</Text>
-              </View>
-              <View className="ml-3 justify-center flex-1">
-                <Text className="text-[15px] font-bold text-slate-800">Annual Society Gala</Text>
-                <Text className="text-[12px] text-slate-500 mt-0.5">Grand Ballroom, City Center</Text>
-              </View>
-            </View>
+        {/* SECTION 4: UPCOMING SOCIETY EVENTS */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Upcoming Society Events</Text>
+          
+          {/* Event 1 */}
+          <View style={styles.eventItem}>
+            <Text style={styles.eventDate}>OCT 14</Text>
+            <Text style={styles.eventTitle}>Tax Ethics Round-Table</Text>
+            <Text style={styles.eventDetails}>Virtual • 148 Administrators Attending</Text>
           </View>
 
+          {/* Event 2 */}
+          <View style={styles.eventItem}>
+            <Text style={styles.eventDate}>OCT 22</Text>
+            <Text style={styles.eventTitle}>Annual Society Gala</Text>
+            <Text style={styles.eventDetails}>Grand Ballroom, City Center</Text>
+          </View>
+
+          {/* Link to all events */}
           <TouchableOpacity 
-            onPress={() => {
-              setActiveTab('directory');
-              setDirectorySubTab('events');
-            }}
-            className="mt-4 pt-3 border-t border-slate-100 items-center justify-center"
+            style={styles.viewAllEventsLink}
+            onPress={() => navigation?.navigate('Directory', { subTab: 'events' })}
           >
-            <Text className="text-sm font-bold text-[#134074]">View All Events</Text>
+            <Text style={styles.viewAllEventsText}>View All Events</Text>
           </TouchableOpacity>
         </View>
 
-        {/* FEED ITEM 4: QUICK BROADCAST CARD */}
-        <View className="bg-[#134074] m-3 p-5 rounded-2xl shadow-md">
-          <Text className="text-lg font-bold text-white mb-1">Quick Broadcast</Text>
-          <Text className="text-[13px] text-blue-100/80 mb-4">
+        {/* SECTION 5: QUICK BROADCAST */}
+        <View style={styles.broadcastCard}>
+          <Text style={styles.broadcastTitle}>Quick Broadcast</Text>
+          <Text style={styles.broadcastSubtitle}>
             Send an instant secure push notification to all active administrative members.
           </Text>
 
+          {/* Subject Field */}
           <TextInput
             placeholder="Subject..."
             placeholderTextColor="#94a3b8"
             value={broadcastSubject}
             onChangeText={setBroadcastSubject}
-            className="bg-white/10 text-white rounded-lg px-3 py-2 text-[14px] mb-3 border border-white/10"
+            style={styles.broadcastInput}
           />
 
+          {/* Message Field */}
           <TextInput
             placeholder="Your message here..."
             placeholderTextColor="#94a3b8"
+            multiline
+            numberOfLines={4}
             value={broadcastMessage}
             onChangeText={setBroadcastMessage}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            className="bg-white/10 text-white rounded-lg px-3 py-2 text-[14px] h-20 mb-4 border border-white/10"
+            style={[styles.broadcastInput, styles.broadcastTextArea]}
           />
 
-          <TouchableOpacity
+          {/* Send Button */}
+          <TouchableOpacity 
+            style={styles.sendButton}
             onPress={handleSendBroadcast}
-            className="bg-white rounded-lg py-2.5 flex-row justify-center items-center space-x-2 active:bg-blue-50"
+            activeOpacity={0.8}
           >
-            <Send size={16} color="#134074" />
-            <Text className="text-[#134074] font-bold text-sm">Send Notification</Text>
+            <Send size={16} color="#0D3866" />
+            <Text style={styles.sendButtonText}>Send Notification</Text>
           </TouchableOpacity>
         </View>
 
-        {/* SCROLL EXTENSION: EXTRA MOCK FEEDS */}
-        <View className="bg-white mb-3 border-y border-slate-100 p-4">
-          <View className="flex-row items-center mb-3">
-            <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center">
-              <Text className="text-blue-700 font-bold text-base">FS</Text>
-            </View>
-            <View className="ml-2.5">
-              <Text className="text-[15px] font-bold text-slate-800">Financial Standards Board</Text>
-              <Text className="text-[11px] text-slate-500">Official Updates Group</Text>
-            </View>
-            <Text className="text-[11px] text-slate-400 ml-auto">1d ago</Text>
-          </View>
-          <Text className="text-slate-700 text-[14px] leading-relaxed">
-            The new 2026 Audit regulations draft has been uploaded to the regional resources folder. Please review the updated rules on cross-border tax disclosures.
-          </Text>
-          <View className="flex-row items-center justify-between border-t border-slate-50 pt-2.5 mt-3">
-            <View className="flex-row items-center space-x-4">
-              <TouchableOpacity className="flex-row items-center space-x-1">
-                <Text className="text-slate-400">👍</Text>
-                <Text className="text-[12px] text-slate-500 font-medium">18</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        {/* Bottom padding for navigation spacing */}
+        <View style={{ height: 100 }} />
       </ScrollView>
-    );
-  };
 
-  // VIEW 2: FINANCIAL REPORTS (ANALYTICS)
-  const renderAnalyticsView = () => {
-    return (
-      <ScrollView className="flex-1 bg-[#F8FAFC] p-4" showsVerticalScrollIndicator={true}>
-        <Text className="text-2xl font-bold text-[#134074] mb-1">Financial Reports</Text>
-        <Text className="text-[13px] text-slate-500 mb-5">Analytics &gt; General Reports Overview</Text>
-
-        {/* Financial Highlights */}
-        <View className="bg-[#D2E4F9] rounded-2xl p-5 mb-4 border border-blue-100">
-          <Text className="text-[#134074] font-bold text-base mb-3">Total Q2 Operating Capital</Text>
-          <Text className="text-3xl font-extrabold text-[#134074]">$1,284,500.00</Text>
-          <View className="flex-row items-center mt-2.5 space-x-1.5">
-            <TrendingUp size={16} color="#3F7E1F" />
-            <Text className="text-[#3F7E1F] text-[13px] font-bold">+12.4% vs last quarter</Text>
-          </View>
-        </View>
-
-        {/* Analytical Cards */}
-        <View className="flex-row space-x-4 mb-4">
-          <View className="flex-1 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-            <Text className="text-slate-500 text-[12px] font-semibold">Active Memberships</Text>
-            <Text className="text-2xl font-bold text-slate-800 mt-1">10,240</Text>
-          </View>
-          <View className="flex-1 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-            <Text className="text-slate-500 text-[12px] font-semibold">Processed Audits</Text>
-            <Text className="text-2xl font-bold text-slate-800 mt-1">452</Text>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  // VIEW 3: DIRECTORY (USERS & EVENTS TABBED VIEW)
-  const renderDirectoryView = () => {
-    return (
-      <View className="flex-1 bg-[#F8FAFC]">
-        {/* Sub-navigation bar */}
-        <View className="flex-row bg-white border-b border-slate-150">
-          <TouchableOpacity
-            onPress={() => setDirectorySubTab('users')}
-            className={`flex-1 items-center py-3 border-b-2 ${directorySubTab === 'users' ? 'border-[#134074]' : 'border-transparent'}`}
-          >
-            <Text className={`font-semibold text-sm ${directorySubTab === 'users' ? 'text-[#134074]' : 'text-slate-400'}`}>
-              Member Directory
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setDirectorySubTab('events')}
-            className={`flex-1 items-center py-3 border-b-2 ${directorySubTab === 'events' ? 'border-[#134074]' : 'border-transparent'}`}
-          >
-            <Text className={`font-semibold text-sm ${directorySubTab === 'events' ? 'text-[#134074]' : 'text-slate-400'}`}>
-              Event Directory
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {directorySubTab === 'users' ? (
-          <ScrollView className="flex-1 p-3" showsVerticalScrollIndicator={true}>
-            {/* Elena Rodriguez */}
-            <TouchableOpacity 
-              onPress={() => viewUserProfile('elena')}
-              className="bg-white flex-row items-center p-3.5 rounded-xl border border-slate-100 mb-2.5 shadow-sm active:bg-slate-50"
-            >
-              <Image
-                source={require('../../assets/elena_profile.png')}
-                className="w-12 h-12 rounded-full border border-slate-100"
-              />
-              <View className="ml-3.5 flex-1">
-                <Text className="font-bold text-slate-800 text-[15px]">Elena Rodriguez, CPA</Text>
-                <Text className="text-[12px] text-[#134074] font-medium mt-0.5">Regional Director, TAS South</Text>
-                <Text className="text-[11px] text-slate-400 mt-0.5">Dallas, TX • Active</Text>
-              </View>
-              <ChevronRight size={18} color="#94a3b8" />
-            </TouchableOpacity>
-
-            {/* Admin User */}
-            <TouchableOpacity 
-              onPress={() => viewUserProfile('admin')}
-              className="bg-white flex-row items-center p-3.5 rounded-xl border border-slate-100 mb-2.5 shadow-sm active:bg-slate-50"
-            >
-              <Image
-                source={require('../../assets/admin_profile.png')}
-                className="w-12 h-12 rounded-full border border-slate-100"
-              />
-              <View className="ml-3.5 flex-1">
-                <Text className="font-bold text-slate-800 text-[15px]">Alexander Davis</Text>
-                <Text className="text-[12px] text-[#134074] font-medium mt-0.5">National System Administrator</Text>
-                <Text className="text-[11px] text-slate-400 mt-0.5">HQ Houston • Active</Text>
-              </View>
-              <ChevronRight size={18} color="#94a3b8" />
-            </TouchableOpacity>
-          </ScrollView>
-        ) : (
-          <ScrollView className="flex-1 p-3" showsVerticalScrollIndicator={true}>
-            {/* Event Cards */}
-            <View className="bg-white p-4 rounded-xl border border-slate-100 mb-3 shadow-sm">
-              <View className="flex-row justify-between items-start mb-2">
-                <View className="bg-blue-50 px-2.5 py-1 rounded">
-                  <Text className="text-xs font-bold text-[#134074]">OCT 14, 2026</Text>
-                </View>
-                <Text className="text-xs text-slate-400 font-semibold">148 Attending</Text>
-              </View>
-              <Text className="font-bold text-slate-800 text-[16px]">Tax Ethics Round-Table</Text>
-              <Text className="text-[13px] text-slate-500 mt-1 leading-relaxed">
-                A structured discussion regarding the draft regulations on digital bookkeeping and remote audit guidelines.
-              </Text>
-              <View className="flex-row items-center mt-3 pt-2.5 border-t border-slate-50">
-                <Video size={14} color="#64748b" />
-                <Text className="text-[12px] text-slate-500 ml-1.5">Virtual Meeting Link Available</Text>
-              </View>
-            </View>
-          </ScrollView>
-        )}
-      </View>
-    );
-  };
-
-  // VIEW 4: CHAT / MESSAGES SCREEN
-  const renderChatView = () => {
-    return (
-      <View className="flex-1 bg-[#F8FAFC]">
-        <View className="px-4 py-3 bg-white border-b border-slate-100">
-          <Text className="text-lg font-bold text-[#134074]">Secured Chats</Text>
-        </View>
-
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={true}>
-          {/* Chat 1 */}
-          <TouchableOpacity className="flex-row items-center p-4 bg-white border-b border-slate-50 active:bg-slate-50">
-            <Image
-              source={require('../../assets/elena_profile.png')}
-              className="w-12 h-12 rounded-full"
-            />
-            <View className="ml-3.5 flex-1">
-              <View className="flex-row justify-between">
-                <Text className="font-bold text-slate-800 text-[15px]">Elena Rodriguez, CPA</Text>
-                <Text className="text-[11px] text-slate-400">10:45 AM</Text>
-              </View>
-              <Text className="text-[13px] text-slate-500 mt-1 font-semibold text-[#134074]" numberOfLines={1}>
-                Let's verify the audit findings before submitting the final Q2 files...
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  };
-
-  // VIEW 5: POSTS ALL / POST MANAGEMENT SCREEN
-  const renderPostsAllView = () => {
-    return (
-      <View className="flex-1 bg-[#F8FAFC]">
-        <View className="px-4 py-3 bg-white border-b border-slate-100 flex-row justify-between items-center">
-          <Text className="text-lg font-bold text-[#134074]">Post Management</Text>
-        </View>
-
-        <ScrollView className="flex-1 p-3" showsVerticalScrollIndicator={true}>
-          {/* Post item */}
-          <View className="bg-white p-4 rounded-xl border border-slate-100 mb-3 shadow-sm">
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-xs font-bold text-slate-400">PUBLISHED • 2 hours ago</Text>
-              <TouchableOpacity><MoreHorizontal size={16} color="#64748b" /></TouchableOpacity>
-            </View>
-            <Text className="font-bold text-slate-800 text-[15px] mb-1">Reconciliation Error API Report</Text>
-            <Text className="text-[13px] text-slate-500 leading-relaxed mb-3">
-              Is anyone else observing a significant increase in automated reconciliation errors following the latest API update...
-            </Text>
-            <View className="flex-row items-center space-x-4 pt-2.5 border-t border-slate-50">
-              <Text className="text-xs text-slate-400 font-semibold">8 Likes</Text>
-              <Text className="text-xs text-slate-400 font-semibold">24 Comments</Text>
-            </View>
-          </View>
-        </ScrollView>
-      </View>
-    );
-  };
-
-  // VIEW 6: DETAILED PROFILE VIEW
-  const renderProfileView = () => {
-    const isElena = profileUser === 'elena';
-
-    return (
-      <ScrollView className="flex-1 bg-[#F8FAFC]" showsVerticalScrollIndicator={true}>
-        {/* Banner */}
-        <View className="h-32 bg-[#D2E4F9] w-full" />
-        
-        {/* User Details */}
-        <View className="px-4 -mt-14 items-center">
-          <Image
-            source={isElena ? require('../../assets/elena_profile.png') : require('../../assets/admin_profile.png')}
-            className="w-28 h-28 rounded-full border-4 border-white shadow-md"
-          />
-          <Text className="text-2xl font-bold text-slate-800 mt-3">
-            {isElena ? 'Elena Rodriguez, CPA' : 'Alexander Davis'}
-          </Text>
-          <Text className="text-sm font-semibold text-[#134074] mt-1">
-            {isElena ? 'Regional Director at TAS South' : 'National System Administrator'}
-          </Text>
-          <Text className="text-xs text-slate-400 mt-1">
-            {isElena ? 'Dallas, Texas Office' : 'HQ Houston Operations'}
-          </Text>
-
-          {/* Bio info */}
-          <View className="w-full bg-white border border-slate-100 rounded-xl p-4 mt-4 shadow-sm">
-            <Text className="text-sm font-bold text-[#134074] mb-2">About</Text>
-            <Text className="text-[13px] text-slate-600 leading-relaxed">
-              {isElena 
-                ? 'Senior certified accountant managing audits and fiscal integrations for regional societies. Specializes in computerized systems control, forensic audits, and corporate ledger management.'
-                : 'Systems manager overseeing server integrity, user permission keys, encryption standards, and secure push notifications across the Texas Society network portal.'}
-            </Text>
-          </View>
-
-          {/* Actions */}
-          <View className="w-full flex-row space-x-3.5 my-5">
-            <TouchableOpacity 
-              onPress={() => setActiveTab('chat')}
-              className="flex-1 bg-[#134074] rounded-lg py-2.5 items-center justify-center shadow-sm"
-            >
-              <Text className="text-white font-bold text-sm">Send Message</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => setActiveTab('feed')}
-              className="flex-1 bg-slate-100 border border-slate-200 rounded-lg py-2.5 items-center justify-center"
-            >
-              <Text className="text-slate-700 font-bold text-sm">Back to Feed</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    );
-  };
-
-  const renderActiveView = () => {
-    switch (activeTab) {
-      case 'feed':
-        return renderFeedView();
-      case 'analytics':
-        return (
-          <AnalyticsScreen
-            onBack={() => {
-              setActiveTab('feed');
-            }}
-            onTabPress={(tab) => setActiveTab(tab as ActiveTab)}
-          />
-        );
-      case 'directory':
-        return (
-          <DirectoryScreen
-            onBack={() => {
-              setActiveTab('feed');
-            }}
-            onTabPress={(tab) => setActiveTab(tab as ActiveTab)}
-            initialSubTab={directorySubTab === 'events' ? 'events' : 'members'}
-          />
-        );
-      case 'chat':
-        return renderChatView();
-      case 'posts_all':
-        return (
-          <PostManagementScreen
-            onBack={() => {
-              setActiveTab('feed');
-            }}
-            onTabPress={(tab) => setActiveTab(tab as ActiveTab)}
-          />
-        );
-      case 'profile':
-        return (
-          <ProfileScreen
-            onBack={() => {
-              setActiveTab('feed');
-            }}
-            onSignOut={onSignOut}
-            onTabPress={(tab) => setActiveTab(tab as ActiveTab)}
-          />
-        );
-      default:
-        return renderFeedView();
-    }
-  };
-
-  return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Top Header */}
-      {renderHeader()}
-
-      {/* Screen Body */}
-      {renderActiveView()}
-
-      {/* Back to Top Floating Button */}
-      {activeTab === 'feed' && showScrollTop && (
+      {/* Floating Scroll to Top */}
+      {showScrollTop && (
         <TouchableOpacity
           onPress={scrollToTop}
           activeOpacity={0.85}
           style={styles.scrollTopButton}
-          className="bg-[#134074] rounded-full justify-center items-center shadow-lg"
         >
           <ArrowUp size={20} color="white" />
         </TouchableOpacity>
       )}
-
-      {/* Bottom Navigation */}
-      {!navigation && renderFooterNav()}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    height: 56,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    zIndex: 30,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+  },
+  chatButton: {
+    padding: 6,
+  },
+  feedScroll: {
+    flex: 1,
+  },
+  feedContentContainer: {
+    padding: 12,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1.5,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 14,
+  },
+  quickActionsContainer: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 10,
+  },
+  actionIconWrapper: {
+    backgroundColor: '#103B6B',
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#334D6E',
+  },
+  feedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  feedAvatar: {
+    width: 32,
+    height: 32,
+  },
+  feedUserAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  feedHeaderTexts: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  feedAuthorName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  feedSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  timeTag: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  postBodyText: {
+    fontSize: 13,
+    color: '#334D6E',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  boldText: {
+    fontWeight: '700',
+  },
+  postImageContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  postImage: {
+    width: '100%',
+    height: 160,
+  },
+  imageOverlayTag: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(13, 56, 102, 0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  overlayTagText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  interactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 10,
+    marginTop: 4,
+  },
+  leftInteractionGroup: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  interactionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  interactionCount: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  quoteCard: {
+    backgroundColor: '#F0F7FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#467A18',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  quoteText: {
+    fontSize: 12.5,
+    fontStyle: 'italic',
+    color: '#467A18',
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  eventItem: {
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 10,
+  },
+  eventDate: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#467A18',
+    marginBottom: 2,
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#334D6E',
+  },
+  eventDetails: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  viewAllEventsLink: {
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  viewAllEventsText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0D3866',
+  },
+  broadcastCard: {
+    backgroundColor: '#103B6B',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  broadcastTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  broadcastSubtitle: {
+    fontSize: 12,
+    color: '#93C5FD',
+    lineHeight: 16,
+    marginBottom: 14,
+  },
+  broadcastInput: {
+    backgroundColor: '#1E4E80',
+    borderWidth: 1,
+    borderColor: '#3873B0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#FFFFFF',
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  broadcastTextArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  sendButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  sendButtonText: {
+    color: '#0D3866',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   scrollTopButton: {
     position: 'absolute',
-    bottom: 75,
-    right: 20,
+    bottom: 90,
+    right: 16,
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0D3866',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
     zIndex: 99,
   },
 });

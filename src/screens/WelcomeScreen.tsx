@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, SafeAreaView, Animated, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, SafeAreaView } from 'react-native';
 
 interface WelcomeScreenProps {
   onTransitionComplete: () => void;
@@ -10,7 +10,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onTransitionComple
 
   useEffect(() => {
     let startTimestamp: number | null = null;
-    const duration = 2500; // 2.5 seconds
+    const duration = 2500; // 2.5 seconds loading duration
 
     const step = (timestamp: number) => {
       if (!startTimestamp) startTimestamp = timestamp;
@@ -22,10 +22,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onTransitionComple
       if (elapsed < duration) {
         requestAnimationFrame(step);
       } else {
-        // Short delay to let the user see 100% complete
+        // Delay slightly before transitioning
         setTimeout(() => {
           onTransitionComplete();
-        }, 150);
+        }, 200);
       }
     };
 
@@ -33,114 +33,85 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onTransitionComple
     return () => cancelAnimationFrame(animFrame);
   }, [onTransitionComplete]);
 
-  // Generate dot grid (5x5) for the background corners
-  const renderDotGrid = () => {
-    return (
-      <View className="flex-col space-y-1.5 opacity-30">
-        {[...Array(5)].map((_, rowIndex) => (
-          <View key={rowIndex} className="flex-row space-x-1.5">
-            {[...Array(5)].map((_, colIndex) => (
-              <View key={colIndex} className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-            ))}
-          </View>
-        ))}
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
-        showsVerticalScrollIndicator={true}
-        className="relative"
-      >
-        {/* Decorative Top-Left Circle Arch */}
-        <View 
-          style={styles.topLeftArchOuter} 
-          className="absolute -top-[120px] -left-[120px] rounded-full border border-blue-200/40 bg-blue-100/10"
-        />
-        <View 
-          style={styles.topLeftArchInner} 
-          className="absolute -top-[160px] -left-[160px] rounded-full border border-blue-100/30"
-        />
+    <SafeAreaView style={styles.container}>
+      {/* Background Image */}
+      <Image
+        source={require('../../assets/background.png')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      />
 
-        {/* Decorative Top-Right Dot Grid */}
-        <View className="absolute top-12 right-6">
-          {renderDotGrid()}
-        </View>
+      <View style={styles.layoutWrapper}>
+        {/* Top spacer to balance vertical layout */}
+        <View style={{ height: 50 }} />
 
-        {/* Center Content */}
-        <View className="items-center justify-center px-8 z-10 py-12">
-          {/* Logo Image */}
+        {/* Center Content: Logo and Title */}
+        <View style={styles.centerContent}>
           <Image
             source={require('../../assets/logo.png')}
-            style={{ width: 250, height: 100 }}
+            style={styles.logo}
             resizeMode="contain"
           />
-
-          {/* Welcome Text */}
-          <Text className="text-3xl font-bold text-[#134074] text-center mt-6 tracking-wide leading-tight max-w-[280px]">
-            Welcome to the{'\n'}Admin Portal
+          <Text style={styles.welcomeText}>
+            Welcome to the{"\n"}Admin Portal
           </Text>
         </View>
 
-        {/* Animated Progress Bar */}
-        <View className="w-[80%] max-w-[300px] mt-6 mb-12">
-          {/* Progress Bar Track */}
-          <View className="h-1.5 w-full bg-blue-100/70 rounded-full overflow-hidden">
-            {/* Progress Bar Fill */}
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { width: `${progress}%` }
-              ]} 
-              className="h-full bg-[#70B62C] rounded-full"
-            />
+        {/* Bottom Loading Progress Bar */}
+        <View style={styles.progressBarContainer}>
+          <View style={styles.progressBarTrack}>
+            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
           </View>
         </View>
-
-        {/* Decorative Bottom-Left Dot Grid */}
-        <View className="absolute bottom-12 left-6">
-          {renderDotGrid()}
-        </View>
-
-        {/* Decorative Bottom-Right Circle Arch */}
-        <View 
-          style={styles.bottomRightArchOuter} 
-          className="absolute -bottom-[120px] -right-[120px] rounded-full border border-blue-200/40 bg-blue-100/10"
-        />
-        <View 
-          style={styles.bottomRightArchInner} 
-          className="absolute -bottom-[160px] -right-[160px] rounded-full border border-blue-100/30"
-        />
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  topLeftArchOuter: {
-    width: 280,
-    height: 280,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  topLeftArchInner: {
-    width: 280,
-    height: 280,
+  layoutWrapper: {
+    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
   },
-  bottomRightArchOuter: {
-    width: 280,
-    height: 280,
+  centerContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
-  bottomRightArchInner: {
-    width: 280,
-    height: 280,
+  logo: {
+    width: 260,
+    height: 110,
+  },
+  welcomeText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#0D3866',
+    textAlign: 'center',
+    marginTop: 32,
+    lineHeight: 40,
+    letterSpacing: 0.5,
+  },
+  progressBarContainer: {
+    width: '100%',
+    maxWidth: 270,
+    marginBottom: 16,
+  },
+  progressBarTrack: {
+    height: 5,
+    width: '100%',
+    backgroundColor: 'rgba(210, 228, 249, 0.6)', // light blue background
+    overflow: 'hidden',
   },
   progressBarFill: {
-    shadowColor: '#70B62C',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2,
+    height: '100%',
+    backgroundColor: '#467A18', // deep green loading fill
   },
 });
