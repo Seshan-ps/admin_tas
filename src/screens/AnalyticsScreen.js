@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, StyleSheet, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, StyleSheet, Image, Platform, StatusBar } from 'react-native';
 import { ArrowLeft, Users, CreditCard, Calendar, Lock, TrendingUp, UserPlus, ChevronDown, ArrowUp, Home as HomeIcon, BarChart3, Newspaper } from 'lucide-react-native';
 import Svg, { Circle, Rect, Path } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
@@ -163,14 +163,6 @@ export const AnalyticsScreen = ({
         <View style={styles.cardContainer}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>Usage</Text>
-            <View style={styles.periodSwitcherTrack}>
-              <TouchableOpacity onPress={() => setUsagePeriod('monthly')} style={[styles.periodSwitcherBtn, usagePeriod === 'monthly' && styles.periodSwitcherBtnActive]}>
-                <Text style={[styles.periodSwitcherText, usagePeriod === 'monthly' && styles.periodSwitcherTextActive]}>Monthly</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setUsagePeriod('weekly')} style={[styles.periodSwitcherBtn, usagePeriod === 'weekly' && styles.periodSwitcherBtnActive]}>
-                <Text style={[styles.periodSwitcherText, usagePeriod === 'weekly' && styles.periodSwitcherTextActive]}>Weekly</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Bar Chart Graphics */}
@@ -329,15 +321,6 @@ export const AnalyticsScreen = ({
         {/* Membership Analytics Dropdown section */}
         <View style={styles.sectionHeaderSpacing}>
           <Text style={styles.sectionHeadingTitle}>Membership Analytics</Text>
-          <TouchableOpacity style={styles.dropdownSelector} activeOpacity={0.8}>
-            <Calendar size={15} color="#0D3866" style={{
-            marginRight: 8
-          }} />
-            <Text style={styles.dropdownText}>Last 6 Months</Text>
-            <ChevronDown size={14} color="#0D3866" style={{
-            marginLeft: 'auto'
-          }} />
-          </TouchableOpacity>
         </View>
 
         {/* KPI Cards with Left Border Accents */}
@@ -516,10 +499,12 @@ export const AnalyticsScreen = ({
 };
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 0,
     flex: 1,
     backgroundColor: '#F4F7FB'
   },
   headerContainer: {
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     backgroundColor: '#E9F0FA',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',

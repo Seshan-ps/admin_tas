@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, Image, Platform, StatusBar } from 'react-native';
 import { ArrowLeft, Home, BarChart3, Newspaper, Users } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
@@ -25,6 +25,42 @@ export const ConnectionsScreen = ({
     }
     Alert.alert('Success', `Verification request has been ${status === 'approved' ? 'approved' : 'declined'}.`);
   };
+  const handleViewProfile = (item) => {
+    const name = item.user_name;
+    const role = item.designation.split('•')[0].trim();
+    const branch = item.designation.includes('•') ? item.designation.split('•')[1].trim() : 'General Branch';
+    const isPlatinum = name.includes('CPA') || role.toLowerCase().includes('senior') || role.toLowerCase().includes('director');
+    const tierLabel = isPlatinum ? 'Platinum Fellow' : 'Associate Member';
+    const badgeRaw = item.id_badge ? item.id_badge.replace('ID: ', '') : '88' + Math.floor(10 + Math.random() * 90) + '-X';
+    const memberId = 'TAS-2026-' + badgeRaw.split('-')[0];
+    const email = `${name.toLowerCase().replace(/,/g, '').replace(/\s+/g, '.').replace('.cpa', '')}@tas-network.org`;
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const fullIdCode = `${badgeRaw}-${initials}-TAS`;
+    const joinDateFull = 'January 14, 2022';
+    const joinDate = 'Joined: Jan 2022';
+    const firm = 'TAS Global Network';
+    const avatar = item.avatar;
+    if (item.id) {
+      dbStore.markQueueItemViewed(item.id);
+    }
+    if (navigation) {
+      navigation.navigate('MemberProfile', {
+        name,
+        role,
+        branch,
+        tierLabel,
+        memberId,
+        joinDate,
+        email,
+        fullIdCode,
+        joinDateFull,
+        firm,
+        avatar
+      });
+    } else {
+      Alert.alert('Profile', `Opening profile of ${name}`);
+    }
+  };
   const DirectoryBookIcon = ({
     color
   }) => <View style={{
@@ -40,7 +76,7 @@ export const ConnectionsScreen = ({
         <Path d="M16.5 12.5l2.5 2.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
       </Svg>
     </View>;
-  return <SafeAreaView className="flex-1 bg-[#F4F7FC] relative">
+  return <SafeAreaView className="flex-1 bg-[#F4F7FC] relative" style={Platform.OS === 'android' ? { paddingTop: StatusBar.currentHeight } : undefined}>
       {/* Top Header */}
       <View className="flex-row items-center px-4 py-4 bg-[#EBF3FC] border-b border-blue-100/50 z-20">
         {onBack && <TouchableOpacity onPress={onBack} className="p-1.5 -ml-1 mr-3 rounded-full bg-white shadow-sm border border-slate-100">
@@ -64,18 +100,21 @@ export const ConnectionsScreen = ({
         {queue.length === 0 ? <View className="bg-white rounded-2xl p-6 mx-4 border border-slate-200 shadow-sm items-center justify-center mb-6">
             <Text className="text-slate-500 font-bold text-sm">All verification items resolved</Text>
           </View> : queue.map(item => <View key={item.id} className="bg-white border border-slate-200/80 rounded-2xl mx-4 mb-4 shadow-sm overflow-hidden">
-              <View className="flex-row items-center p-4">
+              <TouchableOpacity onPress={() => handleViewProfile(item)} activeOpacity={0.8} className="flex-row items-center p-4">
                 <Image source={item.avatar} className="w-14 h-14 rounded-xl border border-slate-100" />
                 <View className="ml-3.5 flex-1">
                   <View className="flex-row justify-between items-start">
-                    <Text className="font-bold text-[#134074] text-[16px] flex-1 mr-2">{item.user_name}</Text>
+                    <Text className="font-bold text-[#134074] text-[16px] flex-1 mr-2">
+                      {item.user_name}
+                      {item.viewed === false && <Text className="text-[10px] text-green-600 font-extrabold ml-1.5"> • NEW</Text>}
+                    </Text>
                     <View className="bg-[#E9F0FA] border border-blue-150/40 rounded px-2 py-0.5">
                       <Text className="text-[10px] font-bold text-[#134074]">{item.id_badge}</Text>
                     </View>
                   </View>
                   <Text className="text-[13px] text-slate-500 mt-1">{item.designation}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Action Buttons */}
               <View className="flex-row border-t border-slate-100 overflow-hidden">
@@ -102,7 +141,7 @@ export const ConnectionsScreen = ({
                     <Text className="text-[12px] text-slate-500 mt-0.5">{log.designation}</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => Alert.alert('Profile', `Opening profile of ${log.user_name}`)} className="bg-[#134074] px-4.5 py-1.5 rounded-full">
+                <TouchableOpacity onPress={() => handleViewProfile(log)} className="bg-[#134074] px-4.5 py-1.5 rounded-full">
                   <Text className="text-white font-bold text-[11px] tracking-wider">VIEW</Text>
                 </TouchableOpacity>
               </View>)}

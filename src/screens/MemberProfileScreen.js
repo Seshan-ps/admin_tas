@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Alert, StyleSheet } from 'react-native';
-import { ArrowLeft, Check, Mail, Calendar, Key, Lock, Edit2, History, Home, BarChart3, FileText, Users, Building2 } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Alert, StyleSheet, Platform, StatusBar } from 'react-native';
+import { ArrowLeft, Check, Mail, Calendar, Key, Lock, Edit2, Trash2, History, Home, BarChart3, FileText, Users, Building2 } from 'lucide-react-native';
 import Svg, { Rect, Circle, Path } from 'react-native-svg';
+import { dbStore } from '../config/dbStore';
 // Custom premium Directory Icon (Book with lens)
 const DirectoryBookIcon = ({
   color
@@ -23,20 +24,64 @@ export const MemberProfileScreen = ({
   navigation,
   onBack
 }) => {
-  // Use route params if available, otherwise default to Sarah Jenkins
-  const memberData = route?.params || {
-    name: 'Sarah Jenkins',
-    role: 'Senior Auditor',
-    branch: 'London Branch',
-    tierLabel: 'Platinum Member',
-    memberId: 'TAS-2024-8842',
-    joinDate: 'Joined: Jan 2021',
-    email: 's.jenkins@pkf-international.com',
-    fullIdCode: '8842-SJ-TAS',
-    joinDateFull: 'January 14, 2021',
-    firm: 'PKF International Ltd.',
-    avatar: require('../../assets/elena_profile.png') // Default to the female profile avatar
-  };
+  const initialParams = route?.params || {};
+  const [memberData, setMemberData] = useState({
+    name: initialParams.name || 'Sarah Jenkins',
+    role: initialParams.role || 'Senior Auditor',
+    branch: initialParams.branch || 'London Branch',
+    tierLabel: initialParams.tierLabel || 'Platinum Member',
+    memberId: initialParams.memberId || 'TAS-2024-8842',
+    joinDate: initialParams.joinDate || 'Joined: Jan 2021',
+    email: initialParams.email || 's.jenkins@pkf-international.com',
+    fullIdCode: initialParams.fullIdCode || '8842-SJ-TAS',
+    joinDateFull: initialParams.joinDateFull || 'January 14, 2021',
+    firm: initialParams.firm || 'PKF International Ltd.',
+    avatar: initialParams.avatar || require('../../assets/elena_profile.png')
+  });
+
+  // Sync state from dbStore and route params
+  useEffect(() => {
+    const syncMember = () => {
+      // Find matching member in the store
+      const idToSearch = route?.params?.memberId || initialParams?.memberId || memberData.memberId;
+      const storeMember = dbStore.getMembers().find(m => m.id === idToSearch || m.memberId === idToSearch);
+      
+      if (storeMember) {
+        setMemberData({
+          name: storeMember.name,
+          role: storeMember.designation,
+          branch: storeMember.tier === 'PLATINUM' ? 'London Branch' : 'Regional Branch',
+          tierLabel: storeMember.tierLabel,
+          memberId: storeMember.memberId,
+          joinDate: 'Joined: Jan 2021',
+          email: route?.params?.email || `${storeMember.name.toLowerCase().replace(' ', '.').replace('dr.', '')}@tas-governance.org`,
+          fullIdCode: `${storeMember.memberId}-SJ-TAS`,
+          joinDateFull: 'January 14, 2021',
+          firm: storeMember.company,
+          avatar: storeMember.avatar
+        });
+      } else if (route?.params) {
+        // Fallback to route parameters if not in global store yet
+        setMemberData({
+          name: route.params.name || memberData.name,
+          role: route.params.role || memberData.role,
+          branch: route.params.branch || memberData.branch,
+          tierLabel: route.params.tierLabel || memberData.tierLabel,
+          memberId: route.params.memberId || memberData.memberId,
+          joinDate: route.params.joinDate || memberData.joinDate,
+          email: route.params.email || memberData.email,
+          fullIdCode: route.params.fullIdCode || memberData.fullIdCode,
+          joinDateFull: route.params.joinDateFull || memberData.joinDateFull,
+          firm: route.params.firm || memberData.firm,
+          avatar: route.params.avatar || memberData.avatar
+        });
+      }
+    };
+
+    syncMember();
+    const unsubscribe = dbStore.subscribe(syncMember);
+    return unsubscribe;
+  }, [route?.params]);
   const handleBack = () => {
     if (onBack) {
       onBack();
@@ -46,32 +91,58 @@ export const MemberProfileScreen = ({
   };
   const navigateToTab = tabName => {
     if (navigation) {
-      navigation.navigate('MainTabs', {
-        screen: tabName
-      });
+      if (tabName === 'Messages') {
+        navigation.navigate('Messages');
+      } else {
+        navigation.navigate('MainTabs', {
+          screen: tabName
+        });
+      }
     }
   };
   return <SafeAreaView style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <ArrowLeft size={24} color="#1E3A8A" />
+          <ArrowLeft size={24} color="#134074" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Members Profile</Text>
-        <View style={{
-        width: 44
-      }} />
+        <TouchableOpacity 
+          style={styles.headerDeleteButton}
+          onPress={() => {
+            Alert.alert(
+              'Delete Member',
+              `Are you sure you want to delete ${memberData.name}? This action is irreversible.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Delete', 
+                  style: 'destructive', 
+                  onPress: () => {
+                    dbStore.deleteMember(memberData.memberId);
+                    Alert.alert('Member Deleted', `${memberData.name} has been successfully deleted from the society records.`, [
+                      { text: 'OK', onPress: () => handleBack() }
+                    ]);
+                  } 
+                }
+              ]
+            );
+          }}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={22} color="#EF4444" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
         {/* CARD 1: HERO SECTION */}
         <View style={styles.card}>
-          <View style={styles.badgeContainer}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, width: '100%' }}>
             <View style={styles.platinumBadge}>
               <View style={styles.checkCircle}>
-                <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                <Check size={9} color="#FFFFFF" strokeWidth={3.5} />
               </View>
-              <Text style={styles.badgeText}>{memberData.tierLabel}</Text>
+              <Text style={styles.badgeText}>{memberData.tierLabel || 'Platinum Member'}</Text>
             </View>
           </View>
 
@@ -87,49 +158,52 @@ export const MemberProfileScreen = ({
           {/* Badges Row */}
           <View style={styles.metaRow}>
             <View style={styles.metaBadge}>
-              <Svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2" style={{
-              marginRight: 6
-            }}>
+              <Svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#134074" strokeWidth="2" style={{ marginRight: 6 }}>
                 <Rect x="3" y="4" width="18" height="16" rx="2" />
                 <Path d="M7 8h10M7 12h10M7 16h6" />
               </Svg>
               <Text style={styles.metaBadgeText}>ID: {memberData.memberId}</Text>
             </View>
             <View style={styles.metaBadge}>
-              <Calendar size={14} color="#60A5FA" style={{
-              marginRight: 6
-            }} />
+              <Calendar size={14} color="#134074" style={{ marginRight: 6 }} />
               <Text style={styles.metaBadgeText}>{memberData.joinDate}</Text>
             </View>
           </View>
         </View>
 
-        {/* CARD 2: VIEW AUDIT LOG */}
-        <TouchableOpacity style={styles.auditLogBtn} onPress={() => Alert.alert('Audit Log', `Viewing security audit logs for ${memberData.name}`)} activeOpacity={0.7}>
-          <History size={24} color="#1E3A8A" style={{
-          marginBottom: 6
-        }} />
-          <Text style={styles.auditLogText}>View Audit Log</Text>
-        </TouchableOpacity>
-
         {/* ACTIONS ROW */}
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.messageBtn} onPress={() => Alert.alert('Secure Message', `Opening direct message with ${memberData.name}`)} activeOpacity={0.8}>
-            <Mail size={18} color="white" style={{
-            marginRight: 8
-          }} />
-            <Text style={styles.messageBtnText}>Message</Text>
+          <TouchableOpacity 
+            style={styles.messageBtnSquare} 
+            onPress={() => {
+              if (navigation) {
+                navigation.navigate('Messages', { 
+                  chatName: memberData.name,
+                  chatAvatar: memberData.avatar
+                });
+              } else {
+                Alert.alert('Secure Message', `Opening direct message with ${memberData.name}`);
+              }
+            }} 
+            activeOpacity={0.8}
+          >
+            <Mail size={22} color="#FFFFFF" style={{ marginBottom: 8 }} />
+            <Text style={styles.messageBtnTextSquare}>Message</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.permissionsBtn} onPress={() => Alert.alert('Edit Permissions', `Modifying administrative ACLs for ${memberData.name}`)} activeOpacity={0.8}>
-            <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E3A8A" strokeWidth="2" style={{
-            marginRight: 8
-          }}>
-              <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <Circle cx="12" cy="11" r="2" />
-              <Path d="M12 13v3" />
-            </Svg>
-            <Text style={styles.permissionsBtnText}>Edit Permissions</Text>
+          <TouchableOpacity 
+            style={styles.editBtnSquare} 
+            onPress={() => {
+              if (navigation) {
+                navigation.navigate('EditDetails', { memberData });
+              } else {
+                Alert.alert('Edit Details', 'Details editing mode active.');
+              }
+            }} 
+            activeOpacity={0.8}
+          >
+            <Edit2 size={20} color="#0F2C59" style={{ marginBottom: 8 }} />
+            <Text style={styles.editBtnTextSquare}>Edit Details</Text>
           </TouchableOpacity>
         </View>
 
@@ -137,12 +211,6 @@ export const MemberProfileScreen = ({
         <View style={styles.card}>
           <View style={styles.memberInfoTitleRow}>
             <Text style={styles.infoTitle}>Member Information</Text>
-            <TouchableOpacity style={styles.editBtn} onPress={() => Alert.alert('Edit Details', 'Details editing mode active.')}>
-              <Edit2 size={14} color="#1E3A8A" style={{
-              marginRight: 4
-            }} />
-              <Text style={styles.editBtnText}>Edit Details</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Email field */}
@@ -160,10 +228,8 @@ export const MemberProfileScreen = ({
           <View style={styles.infoField}>
             <Text style={styles.fieldLabel}>MEMBER ID</Text>
             <View style={styles.fieldValueContainer}>
-              <Key size={16} color="#64748B" style={{
-              marginRight: 8
-            }} />
-              <Text style={styles.fieldValue}>{memberData.fullIdCode}</Text>
+              <Key size={16} color="#64748B" style={{ marginRight: 8, transform: [{ rotate: '-45deg' }] }} />
+              <Text style={styles.fieldValue}>{memberData.fullIdCode || '8842-SJ-TAS'}</Text>
             </View>
           </View>
 
@@ -171,10 +237,8 @@ export const MemberProfileScreen = ({
           <View style={styles.infoField}>
             <Text style={styles.fieldLabel}>JOIN DATE</Text>
             <View style={styles.fieldValueContainer}>
-              <Calendar size={16} color="#64748B" style={{
-              marginRight: 8
-            }} />
-              <Text style={styles.fieldValue}>{memberData.joinDateFull}</Text>
+              <Calendar size={16} color="#64748B" style={{ marginRight: 8 }} />
+              <Text style={styles.fieldValue}>{memberData.joinDateFull || 'January 14, 2021'}</Text>
             </View>
           </View>
 
@@ -182,29 +246,26 @@ export const MemberProfileScreen = ({
           <View style={styles.infoField}>
             <Text style={styles.fieldLabel}>PRIMARY FIRM</Text>
             <View style={styles.fieldValueContainer}>
-              <Building2 size={16} color="#64748B" style={{
-              marginRight: 8
-            }} />
-              <Text style={styles.fieldValue}>{memberData.firm}</Text>
+              <Building2 size={16} color="#64748B" style={{ marginRight: 8 }} />
+              <Text style={styles.fieldValue}>{memberData.firm || 'PKF International Ltd.'}</Text>
             </View>
           </View>
 
           {/* Bottom Security Row */}
           <View style={styles.securityRow}>
             <Text style={styles.securityText}>SECURE DATA ENCRYPTION ENABLED</Text>
-            <View style={styles.verifiedBadge}>
-              <Lock size={12} color="#4D7C0F" style={{
-              marginRight: 4
-            }} />
-              <Text style={styles.verifiedText}>Verified Institutional Member</Text>
+            <View style={styles.verifiedBadgeContainer}>
+              <Lock size={14} color="#4E8D15" style={{ marginRight: 6, marginTop: 2 }} />
+              <View>
+                <Text style={styles.verifiedTextLine}>Verified Institutional</Text>
+                <Text style={styles.verifiedTextLine}>Member</Text>
+              </View>
             </View>
           </View>
         </View>
 
         {/* Bottom Scroll spacer */}
-        <View style={{
-        height: 100
-      }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Floating Bottom Nav Bar Mock */}
@@ -236,41 +297,53 @@ export const MemberProfileScreen = ({
 };
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 0,
     flex: 1,
     backgroundColor: '#F4F7FB'
   },
   header: {
-    height: 56,
-    backgroundColor: '#E9F0FA',
+    height: Platform.OS === 'android' ? 56 + StatusBar.currentHeight : 56,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: '#E3EEFF', // Light blue wash
     borderBottomWidth: 1,
-    borderBottomColor: '#DBEAFE',
+    borderBottomColor: '#CBD5E1',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    position: 'relative',
   },
   backButton: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 10,
     padding: 8,
-    marginLeft: -8
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#0F2C59'
+    fontWeight: '800',
+    color: '#0F2C59',
+    textAlign: 'center',
+  },
+  headerDeleteButton: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 10,
+    padding: 8
   },
   scrollContainer: {
     flex: 1
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 120
+    paddingBottom: 140
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
@@ -288,24 +361,26 @@ const styles = StyleSheet.create({
   platinumBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#BEF264',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 99
+    backgroundColor: '#D2F4B3', // Soft green pill background
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12
   },
   checkCircle: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#4D7C0F',
+    backgroundColor: '#4E8D15', // Green badge circle
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 4
+    marginRight: 6
   },
   badgeText: {
-    color: '#3F6212',
+    color: '#4E8D15',
     fontSize: 11,
-    fontWeight: '700'
+    fontWeight: '800'
   },
   avatarContainer: {
     alignSelf: 'center',
@@ -320,24 +395,25 @@ const styles = StyleSheet.create({
     marginBottom: 16
   },
   avatar: {
-    width: 120,
-    height: 120,
+    width: 110,
+    height: 110,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0'
   },
   memberName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#0F2C59',
-    textAlign: 'center'
+    color: '#0E3866',
+    textAlign: 'center',
+    marginTop: 16,
   },
   memberSubtitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#475569',
+    color: '#64748B',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 6,
     marginBottom: 16
   },
   metaRow: {
@@ -348,73 +424,60 @@ const styles = StyleSheet.create({
   metaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E3EEFF',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#DBEAFE'
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   metaBadgeText: {
-    color: '#1E40AF',
-    fontSize: 12,
+    color: '#134074',
+    fontSize: 12.5,
     fontWeight: '700'
-  },
-  auditLogBtn: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  auditLogText: {
-    color: '#1E3A8A',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
   },
   actionsRow: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 16
   },
-  messageBtn: {
+  messageBtnSquare: {
     flex: 1,
     backgroundColor: '#0F2C59',
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    borderRadius: 12,
     alignItems: 'center',
-    paddingVertical: 14
+    justifyContent: 'center',
+    paddingVertical: 18,
+    shadowColor: '#0F2C59',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  messageBtnText: {
+  messageBtnTextSquare: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '700'
+    fontWeight: '700',
   },
-  permissionsBtn: {
+  editBtnSquare: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    borderRadius: 12,
     alignItems: 'center',
-    paddingVertical: 14
+    justifyContent: 'center',
+    paddingVertical: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  permissionsBtnText: {
-    color: '#1E3A8A',
+  editBtnTextSquare: {
+    color: '#0F2C59',
     fontSize: 13,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   memberInfoTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
@@ -424,15 +487,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#0F2C59'
-  },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  editBtnText: {
-    color: '#1E3A8A',
-    fontSize: 13,
-    fontWeight: '700'
   },
   infoField: {
     marginBottom: 20
@@ -449,14 +503,19 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   fieldIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#64748B',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 8,
-    width: 16,
-    alignItems: 'center'
   },
   fieldIconAt: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#64748B',
-    fontWeight: '600'
+    fontWeight: '700',
   },
   fieldValue: {
     fontSize: 14,
@@ -478,43 +537,42 @@ const styles = StyleSheet.create({
     color: '#64748B',
     letterSpacing: 0.3
   },
-  verifiedBadge: {
+  verifiedBadgeContainer: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'flex-start',
   },
-  verifiedText: {
-    color: '#4D7C0F',
-    fontSize: 10,
-    fontWeight: '700'
+  verifiedTextLine: {
+    color: '#4E8D15',
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'left',
+    lineHeight: 14,
   }
 });
 const navStyles = StyleSheet.create({
   tabContainer: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    zIndex: 100
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 100,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 35,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    width: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8
   },
   tabItem: {
     flexDirection: 'row',

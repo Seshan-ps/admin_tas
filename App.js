@@ -21,6 +21,7 @@ import { MessagesScreen } from './src/screens/MessagesScreen';
 import { ConnectionsScreen } from './src/screens/ConnectionsScreen';
 import { MemberProfileScreen } from './src/screens/MemberProfileScreen';
 import { CreateEventScreen } from './src/screens/CreateEventScreen';
+import { EditDetailsScreen } from './src/screens/EditDetailsScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -222,6 +223,7 @@ function RootNavigator() {
       </Stack.Screen>
       <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
       <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+      <Stack.Screen name="EditDetails" component={EditDetailsScreen} />
     </Stack.Navigator>;
 }
 export default function App() {

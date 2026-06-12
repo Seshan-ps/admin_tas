@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, SafeAreaView, Alert, StyleSheet, Platform, Image, Linking } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, SafeAreaView, Alert, StyleSheet, Platform, Image, Linking, StatusBar, Modal } from 'react-native';
 import { ArrowLeft, Search, Globe, Lock, Edit2, Trash2, Info, Plus, X, ChevronDown, Eye, Heart, MessageSquare, Share2, Home as HomeIcon, BarChart3, Newspaper, Users, ArrowUp, Bold, Italic, List, Image as ImageIcon, FileText, Link, AtSign, Check, ArrowRight } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
@@ -98,6 +98,7 @@ export const PostManagementScreen = ({
 
   // Create / Edit state
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
   const [formTitle, setFormTitle] = useState('');
   const [formBody, setFormBody] = useState('');
@@ -204,7 +205,7 @@ export const PostManagementScreen = ({
           }
           const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
+            allowsEditing: false,
             quality: 1
           });
           if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -311,23 +312,7 @@ export const PostManagementScreen = ({
     }
   };
   const handleDelete = id => {
-    if (Platform.OS === 'web') {
-      const confirmDelete = window.confirm('Are you sure you want to delete this post?');
-      if (confirmDelete) {
-        dbStore.setPosts(posts.filter(p => p.id !== id));
-      }
-    } else {
-      Alert.alert('Confirm Delete', 'Are you sure you want to delete this post?', [{
-        text: 'Cancel',
-        style: 'cancel'
-      }, {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          dbStore.setPosts(posts.filter(p => p.id !== id));
-        }
-      }]);
-    }
+    setPostToDelete(id);
   };
   const handleSaveForm = overrideStatus => {
     if (!formTitle.trim() || !formBody.trim()) {
@@ -783,10 +768,47 @@ export const PostManagementScreen = ({
             </TouchableOpacity>
           </View>
         </View>}
+
+      {/* Premium Round Corner Confirm Delete Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={postToDelete !== null}
+        onRequestClose={() => setPostToDelete(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <Text style={styles.confirmModalTitle}>Confirm Delete</Text>
+            <Text style={styles.confirmModalBody}>Are you sure you want to delete this post?</Text>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.confirmModalBtn, styles.cancelBtn]}
+                onPress={() => setPostToDelete(null)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>CANCEL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmModalBtn, styles.deleteBtn]}
+                onPress={() => {
+                  if (postToDelete) {
+                    dbStore.setPosts(posts.filter(p => p.id !== postToDelete));
+                    setPostToDelete(null);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.deleteBtnText}>DELETE</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>;
 };
 const styles = StyleSheet.create({
   container: {
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     flex: 1,
     backgroundColor: '#F4F7FB'
   },
@@ -1543,5 +1565,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#0D3866',
     fontWeight: '600'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20, // Round corner box as requested!
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8
+  },
+  confirmModalBody: {
+    fontSize: 15,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 24
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center'
+  },
+  confirmModalBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginLeft: 12
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D3866',
+    letterSpacing: 0.5
+  },
+  deleteBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#EF4444',
+    letterSpacing: 0.5
   }
 });

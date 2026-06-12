@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, SafeAreaView, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, SafeAreaView, Alert, StyleSheet, Platform, StatusBar } from 'react-native';
 import { ArrowLeft, Calendar, Clock, MapPin, ChevronDown, Home, BarChart3, FileText, Users, Check } from 'lucide-react-native';
 import Svg, { Rect, Circle, Path } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
@@ -72,9 +72,13 @@ export const CreateEventScreen = ({
   };
   const navigateToTab = tabName => {
     if (navigation) {
-      navigation.navigate('MainTabs', {
-        screen: tabName
-      });
+      if (tabName === 'Messages') {
+        navigation.navigate('Messages');
+      } else {
+        navigation.navigate('MainTabs', {
+          screen: tabName
+        });
+      }
     }
   };
   return <SafeAreaView style={styles.container}>
@@ -251,11 +255,13 @@ export const CreateEventScreen = ({
 };
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 0,
     flex: 1,
     backgroundColor: '#F4F7FB'
   },
   header: {
-    height: 56,
+    height: Platform.OS === 'android' ? 56 + StatusBar.currentHeight : 56,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     backgroundColor: '#E9F0FA',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',

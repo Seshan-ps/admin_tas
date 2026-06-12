@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, SafeAreaView, Alert, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, SafeAreaView, Alert, StyleSheet, Platform, StatusBar } from 'react-native';
 import { ArrowLeft, Search, MessageSquare, Plus, MapPin, IdCard, ArrowUp, Laptop, Link, Users, Edit2 } from 'lucide-react-native';
+import { dbStore } from '../config/dbStore';
+
 export const DirectoryScreen = ({
   onBack,
   onTabPress,
@@ -32,87 +34,13 @@ export const DirectoryScreen = ({
   };
 
   // Members data
-  const [members] = useState([{
-    id: '1',
-    name: 'Dr. Alistair Vance',
-    designation: 'Chief Financial Auditor',
-    company: 'Global Trust',
-    memberId: 'TAS-9920-PL',
-    tier: 'PLATINUM',
-    tierLabel: 'PLATINUM ELITE',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: true
-  }, {
-    id: '2',
-    name: 'Elena Rodriguez',
-    designation: 'Partner',
-    company: 'Rodriguez & Assoc.',
-    memberId: 'TAS-4412-SR',
-    tier: 'SENIOR',
-    tierLabel: 'SENIOR FELLOW',
-    avatar: require('../../assets/elena_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '3',
-    name: 'Jameson Thorne',
-    designation: 'Forensic Accountant',
-    company: 'TAS Governance',
-    memberId: 'TAS-8801-AS',
-    tier: 'ASSOCIATE',
-    tierLabel: 'ASSOCIATE',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '4',
-    name: 'Sarah Jenkins',
-    designation: 'Senior Auditor',
-    company: 'PKF International Ltd.',
-    memberId: 'TAS-2024-8842',
-    tier: 'PLATINUM',
-    tierLabel: 'Platinum Member',
-    avatar: require('../../assets/elena_profile.png'),
-    hasGreenBorder: true
-  }, {
-    id: '5',
-    name: 'Marcus Vance',
-    designation: 'Tax Strategist',
-    company: 'Vance Partners',
-    memberId: 'TAS-5521-SR',
-    tier: 'SENIOR',
-    tierLabel: 'SENIOR FELLOW',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '6',
-    name: 'Clara Oswald',
-    designation: 'Compliance Lead',
-    company: 'Clara Audits Ltd.',
-    memberId: 'TAS-1209-AS',
-    tier: 'ASSOCIATE',
-    tierLabel: 'ASSOCIATE',
-    avatar: require('../../assets/elena_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '7',
-    name: 'Rupert Thorne',
-    designation: 'Junior Researcher',
-    company: 'City University',
-    memberId: 'TAS-3041-ST',
-    tier: 'STUDENT',
-    tierLabel: 'STUDENT MEMBER',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '8',
-    name: 'Liam Neeson',
-    designation: 'Security Director',
-    company: 'United Group',
-    memberId: 'TAS-9988-SR',
-    tier: 'SENIOR',
-    tierLabel: 'SENIOR FELLOW',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
-  }]);
+  const [members, setMembers] = useState(dbStore.getMembers());
+  useEffect(() => {
+    const unsubscribe = dbStore.subscribe(() => {
+      setMembers([...dbStore.getMembers()]);
+    });
+    return unsubscribe;
+  }, []);
 
   // Events data
   const [events] = useState([{
@@ -565,11 +493,13 @@ export const DirectoryScreen = ({
 };
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 0,
     flex: 1,
     backgroundColor: '#F8FAFC'
   },
   header: {
-    height: 56,
+    height: Platform.OS === 'android' ? 56 + StatusBar.currentHeight : 56,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     backgroundColor: '#E9F0FA',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',

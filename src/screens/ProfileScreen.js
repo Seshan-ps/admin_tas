@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Alert, StyleSheet, Platform, StatusBar } from 'react-native';
 import { ArrowLeft, User, Briefcase, Shield, Calendar, CheckCircle, AlertTriangle, LogOut, ArrowUp } from 'lucide-react-native';
 import { supabase } from '../config/supabase';
 export const ProfileScreen = ({
@@ -217,6 +217,7 @@ export const ProfileScreen = ({
 };
 const styles = StyleSheet.create({
   container: {
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     flex: 1,
     backgroundColor: '#F8FAFC'
   },

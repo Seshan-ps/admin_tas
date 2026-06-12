@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Alert, SafeAreaView, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Alert, SafeAreaView, StyleSheet, Dimensions, Modal, Platform, StatusBar } from 'react-native';
 import { MessageSquare, Users, BarChart3, Calendar, FileText, ArrowUp, Send, Share2, ThumbsUp, X } from 'lucide-react-native';
 import { dbStore } from '../config/dbStore';
 const {
@@ -43,8 +43,12 @@ export const HomeScreen = ({
   navigation
 }) => {
   const [feedPosts, setFeedPosts] = useState([]);
+  const [hasUnread, setHasUnread] = useState(false);
   const [commentInputs, setCommentInputs] = useState({});
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [sharingPost, setSharingPost] = useState(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState('');
+  const [shareMessageText, setShareMessageText] = useState('');
   const resolvePostImage = imgSrc => {
     if (!imgSrc) return null;
     if (typeof imgSrc === 'string') {
@@ -207,6 +211,8 @@ export const HomeScreen = ({
         // Combine DB posts (reversed so newest is first) followed by static ones
         return [...mappedDbPosts].reverse().concat(staticPosts);
       });
+      const unread = dbStore.getDms().some(d => d.unread);
+      setHasUnread(unread);
     };
     updateFeed();
     const unsubscribe = dbStore.subscribe(updateFeed);
@@ -252,22 +258,57 @@ export const HomeScreen = ({
       return post;
     }));
   };
-  const handleSharePost = postId => {
-    setFeedPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        const isShared = !post.isShared;
-        const newSharesCount = isShared ? post.sharesCount + 1 : post.sharesCount - 1;
-        if (isShared) {
-          Alert.alert('Share Post', 'Post shared successfully! Link copied to clipboard.');
-        }
+  const handleSharePost = post => {
+    setSharingPost(post);
+    setSelectedConnectionId('');
+    setShareMessageText('');
+  };
+  const handleSendShare = () => {
+    if (!sharingPost || !selectedConnectionId) {
+      Alert.alert('Selection Required', 'Please select a contact to share this post with.');
+      return;
+    }
+
+    // Call dbStore to increment share count on DB posts
+    if (!sharingPost.id.startsWith('static_')) {
+      dbStore.sharePost(sharingPost.id);
+    }
+
+    const newTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newMsg = {
+      id: `msg_share_${Date.now()}`,
+      sender: 'me',
+      text: shareMessageText.trim(),
+      time: newTime,
+      status: 'SENT',
+      sharedPost: {
+        id: sharingPost.id,
+        authorName: sharingPost.authorName,
+        body: sharingPost.postBody,
+        image: sharingPost.postImage
+      }
+    };
+
+    // Send it via dbStore
+    dbStore.addMessage(selectedConnectionId, newMsg);
+
+    // Update local feedPosts to mark shared
+    setFeedPosts(prevPosts => prevPosts.map(p => {
+      if (p.id === sharingPost.id) {
         return {
-          ...post,
-          isShared,
-          sharesCount: newSharesCount
+          ...p,
+          isShared: true,
+          sharesCount: p.sharesCount + 1
         };
       }
-      return post;
+      return p;
     }));
+
+    const recipient = dbStore.getDms().find(d => d.id === selectedConnectionId);
+    Alert.alert('Shared Successfully', `This post has been shared with ${recipient ? recipient.name : 'your contact'}.`);
+    
+    // Close Modal
+    setSharingPost(null);
   };
   const handleAddComment = postId => {
     const text = commentInputs[postId]?.trim();
@@ -344,7 +385,10 @@ export const HomeScreen = ({
 
         {/* Chat / Messages Button (Right) */}
         <TouchableOpacity onPress={() => navigation?.navigate('Messages')} activeOpacity={0.8} style={styles.chatButton}>
-          <MessageSquare size={22} color="#134074" />
+          <View style={styles.chatIconContainer}>
+            <MessageSquare size={22} color="#134074" />
+            {hasUnread && <View style={styles.unreadDot} />}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -460,7 +504,7 @@ export const HomeScreen = ({
                   </Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => handleSharePost(post.id)} style={styles.interactionButton}>
+              <TouchableOpacity onPress={() => handleSharePost(post)} style={styles.interactionButton}>
                 <Share2 size={16} color={post.isShared ? "#134074" : "#64748b"} />
               </TouchableOpacity>
             </View>
@@ -518,19 +562,15 @@ export const HomeScreen = ({
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Upcoming Society Events</Text>
           
-          {/* Event 1 */}
-          <View style={styles.eventItem}>
-            <Text style={styles.eventDate}>OCT 14</Text>
-            <Text style={styles.eventTitle}>Tax Ethics Round-Table</Text>
-            <Text style={styles.eventDetails}>Virtual • 148 Administrators Attending</Text>
-          </View>
-
-          {/* Event 2 */}
-          <View style={styles.eventItem}>
-            <Text style={styles.eventDate}>OCT 22</Text>
-            <Text style={styles.eventTitle}>Annual Society Gala</Text>
-            <Text style={styles.eventDetails}>Grand Ballroom, City Center</Text>
-          </View>
+          {dbStore.getEvents().slice(0, 3).map((event) => (
+            <View key={event.id} style={styles.eventItem}>
+              <Text style={styles.eventDate}>{event.date.replace(/, \d{4}/, '')}</Text>
+              <Text style={styles.eventTitle}>{event.title}</Text>
+              <Text style={styles.eventDetails}>
+                {event.location} • {event.attendees} Attending
+              </Text>
+            </View>
+          ))}
 
           {/* Link to all events */}
           <TouchableOpacity style={styles.viewAllEventsLink} onPress={() => navigation?.navigate('Directory', {
@@ -566,6 +606,88 @@ export const HomeScreen = ({
       }} />
       </ScrollView>
 
+      {/* Premium Share Modal */}
+      {sharingPost && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={sharingPost !== null}
+          onRequestClose={() => setSharingPost(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Share Post to Connection</Text>
+                <TouchableOpacity onPress={() => setSharingPost(null)} style={styles.closeModalBtn}>
+                  <X size={20} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Connections List Selector */}
+              <Text style={styles.modalSectionLabel}>Select a contact:</Text>
+              <ScrollView style={styles.connectionsList} showsVerticalScrollIndicator={false}>
+                {dbStore.getDms().map((connection) => {
+                  const isSelected = selectedConnectionId === connection.id;
+                  return (
+                    <TouchableOpacity
+                      key={connection.id}
+                      onPress={() => setSelectedConnectionId(connection.id)}
+                      style={[
+                        styles.connectionRow,
+                        isSelected && styles.connectionRowSelected
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Image source={connection.avatar} style={styles.connectionAvatar} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={[styles.connectionName, isSelected && styles.connectionNameSelected]}>
+                          {connection.name}
+                        </Text>
+                        <Text style={styles.connectionRole} numberOfLines={1}>
+                          {connection.id === 'sarah' ? 'Senior Auditor • PKF' : connection.id === '1' ? 'Regional Director • TAS' : 'Chief Auditor • Global Trust'}
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.checkboxCircle,
+                        isSelected && styles.checkboxCircleSelected
+                      ]}>
+                        {isSelected && <View style={styles.checkboxInner} />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Message Input */}
+              <Text style={styles.modalSectionLabel}>Add a message (optional):</Text>
+              <TextInput
+                placeholder="Write a message..."
+                placeholderTextColor="#94A3B8"
+                value={shareMessageText}
+                onChangeText={setShareMessageText}
+                style={styles.modalMessageInput}
+                multiline
+                numberOfLines={3}
+              />
+
+              {/* Send Button */}
+              <TouchableOpacity
+                onPress={handleSendShare}
+                style={[
+                  styles.modalSendBtn,
+                  !selectedConnectionId && styles.modalSendBtnDisabled
+                ]}
+                disabled={!selectedConnectionId}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalSendBtnText}>Send in Message</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* Floating Scroll to Top */}
       {showScrollTop && <TouchableOpacity onPress={scrollToTop} activeOpacity={0.85} style={styles.scrollTopButton}>
           <ArrowUp size={20} color="white" />
@@ -575,7 +697,8 @@ export const HomeScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: '#F8FAFC',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
   header: {
     height: 56,
@@ -601,6 +724,23 @@ const styles = StyleSheet.create({
   },
   chatButton: {
     padding: 6
+  },
+  chatIconContainer: {
+    position: 'relative',
+    width: 22,
+    height: 22
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#22C55E',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    zIndex: 10
   },
   feedScroll: {
     flex: 1
@@ -962,5 +1102,140 @@ const styles = StyleSheet.create({
   },
   commentSendButton: {
     padding: 4
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    width: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 12,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866',
+  },
+  closeModalBtn: {
+    padding: 4,
+  },
+  modalSectionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  connectionsList: {
+    maxHeight: 180,
+    marginBottom: 16,
+  },
+  connectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+    backgroundColor: '#FAFCFF',
+  },
+  connectionRowSelected: {
+    borderColor: '#134074',
+    backgroundColor: '#F0F6FC',
+  },
+  connectionAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  connectionName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#334D6E',
+  },
+  connectionNameSelected: {
+    color: '#0D3866',
+    fontWeight: '800',
+  },
+  connectionRole: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  checkboxCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxCircleSelected: {
+    borderColor: '#134074',
+  },
+  checkboxInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#134074',
+  },
+  modalMessageInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#334D6E',
+    textAlignVertical: 'top',
+    height: 70,
+    marginBottom: 20,
+  },
+  modalSendBtn: {
+    backgroundColor: '#134074',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#134074',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  modalSendBtnDisabled: {
+    backgroundColor: '#94A3B8',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  modalSendBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   }
 });
