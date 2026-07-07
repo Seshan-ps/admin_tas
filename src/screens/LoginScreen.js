@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { supabase } from '../config/supabase';
 export const LoginScreen = ({
   onLoginSuccess
 }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('Admin');
+  const [password, setPassword] = useState('Admin@123');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'android'
+    ? (insets.top === 0 ? 24 : insets.top)
+    : insets.top;
+  const bottomPadding = Platform.OS === 'android'
+    ? (insets.bottom === 0 ? 24 : insets.bottom)
+    : insets.bottom;
   const handleLogin = async () => {
     setErrorMessage('');
     if (!username || !password) {
@@ -43,14 +51,17 @@ export const LoginScreen = ({
       setErrorMessage(error.message || 'Invalid username or password.\nPlease try again.');
     }
   };
-  return <SafeAreaView className="flex-1 bg-white relative">
+  return <View className="flex-1 bg-white relative">
       <Image source={require('../../assets/background.png')} style={StyleSheet.absoluteFill} resizeMode="cover" />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         <ScrollView contentContainerStyle={{
         flexGrow: 1,
-        justifyContent: 'space-between'
-      }} showsVerticalScrollIndicator={false} className="px-6 py-4">
+        justifyContent: 'space-between',
+        paddingTop: topPadding + 8,
+        paddingBottom: bottomPadding + 8,
+        paddingHorizontal: 24
+      }} showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1, justifyContent: 'center', paddingVertical: 16 }}>
             {/* Logo Header */}
             <View className="items-center mb-5 mt-2">
@@ -195,5 +206,5 @@ export const LoginScreen = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>;
+    </View>;
 };

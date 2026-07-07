@@ -1,11 +1,23 @@
 import './global.css';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, View, StyleSheet, Text, TouchableOpacity, Modal, Alert } from 'react-native';
+
+// Intercept and customize global React Native Alert.alert to render round corner modals
+let alertTrigger = null;
+const originalAlert = Alert.alert;
+Alert.alert = (title, message, buttons, options) => {
+  if (alertTrigger) {
+    alertTrigger(title, message, buttons, options);
+  } else {
+    originalAlert(title, message, buttons, options);
+  }
+};
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home as HomeIcon, BarChart3, Users as UsersIcon, Newspaper } from 'lucide-react-native';
+import { Home as HomeIcon, BarChart3, Users as UsersIcon, Newspaper, Calendar as CalendarIcon } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
 // Import Screens
@@ -22,136 +34,31 @@ import { ConnectionsScreen } from './src/screens/ConnectionsScreen';
 import { MemberProfileScreen } from './src/screens/MemberProfileScreen';
 import { CreateEventScreen } from './src/screens/CreateEventScreen';
 import { EditDetailsScreen } from './src/screens/EditDetailsScreen';
+import { EventsScreen } from './src/screens/EventsScreen';
+import { NotificationScreen } from './src/screens/NotificationScreen';
+import { CommunityScreen } from './src/screens/CommunityScreen';
+import { CustomTabBar } from './src/components/CustomTabBar';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-// Custom premium Directory Icon (Book with lens)
-const DirectoryBookIcon = ({
-  color
-}) => <View style={{
-  width: 22,
-  height: 22,
-  justifyContent: 'center',
-  alignItems: 'center'
-}}>
-    <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <Rect x="4" y="2" width="16" height="20" rx="3" fill="none" stroke={color} strokeWidth="2.5" />
-      <Path d="M8 2v20" stroke={color} strokeWidth="1.5" />
-      <Circle cx="14" cy="10" r="3" stroke={color} strokeWidth="2" fill="white" />
-      <Path d="M16.5 12.5l2.5 2.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    </Svg>
-  </View>;
-
-// Custom Bottom Tab Bar component
-function CustomTabBar({
-  state,
-  descriptors,
-  navigation
-}) {
-  return <View style={navStyles.tabContainer}>
-      <View style={navStyles.tabBar}>
-        {state.routes.map((route, index) => {
-        const {
-          options
-        } = descriptors[route.key];
-        const label = options.tabBarLabel !== undefined ? options.tabBarLabel : options.title !== undefined ? options.title : route.name;
-        const isFocused = state.index === index;
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true
-          });
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
-        const activeColor = '#70B62C'; // Green active state
-        const inactiveColor = '#134074'; // Dark blue inactive state
-        const color = isFocused ? activeColor : inactiveColor;
-        const renderIcon = () => {
-          switch (route.name) {
-            case 'Home':
-              return <HomeIcon size={22} color={color} />;
-            case 'Analytics':
-              return <BarChart3 size={22} color={color} />;
-            case 'Posts':
-              return <Newspaper size={22} color={color} />;
-            case 'Connect':
-              return <UsersIcon size={22} color={color} />;
-            case 'Directory':
-              return <DirectoryBookIcon color={color} />;
-            default:
-              return <HomeIcon size={22} color={color} />;
-          }
-        };
-        const displayLabel = route.name === 'Connect' ? 'Connect' : route.name === 'Posts' ? 'Post' : label;
-        return <TouchableOpacity key={route.key} accessibilityRole="button" accessibilityState={isFocused ? {
-          selected: true
-        } : {}} onPress={onPress} style={[navStyles.tabItem, isFocused ? navStyles.tabItemActive : null]}>
-              {renderIcon()}
-              {isFocused && <Text style={navStyles.tabLabel}>
-                  {displayLabel}
-                </Text>}
-            </TouchableOpacity>;
-      })}
-      </View>
-    </View>;
-}
-const navStyles = StyleSheet.create({
-  tabContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#ffffff',
-    zIndex: 100,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -4
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0'
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    width: '100%',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12
-  },
-  tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20
-  },
-  tabItemActive: {
-    backgroundColor: '#f0fdf4' // Soft green background tint for active
-  },
-  tabLabel: {
-    color: '#70B62C',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 6
-  }
-});
 
 // Bottom Tab Navigator for Post-Login Screens
 function MainTabNavigator({
   navigation
 }) {
+  const mapTab = (tab) => {
+    const mapping = {
+      feed: 'Home',
+      analytics: 'Analytics',
+      posts_all: 'Post',
+      Connect: 'Connection',
+      community: 'Community',
+      directory: 'Directory',
+      events: 'Events'
+    };
+    return mapping[tab] || tab;
+  };
+
   return <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{
     headerShown: false
   }}>
@@ -164,28 +71,35 @@ function MainTabNavigator({
       <Tab.Screen name="Analytics">
         {({
         navigation
-      }) => <AnalyticsScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(tab)} />}
+      }) => <AnalyticsScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(mapTab(tab))} />}
       </Tab.Screen>
 
-      <Tab.Screen name="Posts">
+      <Tab.Screen name="Post">
         {({
-        navigation
-      }) => <PostManagementScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(tab)} />}
+        navigation,
+        route
+      }) => <PostManagementScreen navigation={navigation} route={route} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(mapTab(tab))} />}
       </Tab.Screen>
 
-      <Tab.Screen name="Connect">
+      <Tab.Screen name="Connection">
         {({
         navigation
-      }) => <ConnectionsScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(tab)} />}
+      }) => <ConnectionsScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(mapTab(tab))} />}
+      </Tab.Screen>
+      <Tab.Screen name="Community">
+        {({
+        navigation
+      }) => <CommunityScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(mapTab(tab))} />}
       </Tab.Screen>
 
-      <Tab.Screen name="Directory">
+      <Tab.Screen name="Events">
         {({
         navigation
-      }) => <DirectoryScreen navigation={navigation} onBack={() => navigation.navigate('Home')} initialSubTab="members" onTabPress={tab => navigation.navigate(tab)} />}
+      }) => <EventsScreen navigation={navigation} onBack={() => navigation.navigate('Home')} onTabPress={tab => navigation.navigate(mapTab(tab))} />}
       </Tab.Screen>
     </Tab.Navigator>;
 }
+
 function RootNavigator() {
   return <Stack.Navigator screenOptions={{
     headerShown: false
@@ -216,20 +130,143 @@ function RootNavigator() {
         navigation
       }) => <ConnectionsScreen onBack={() => navigation.goBack()} />}
       </Stack.Screen>
-      <Stack.Screen name="Messages">
+      <Stack.Screen name="Directory">
         {({
         navigation
-      }) => <MessagesScreen onBack={() => navigation.goBack()} navigation={navigation} />}
+      }) => <DirectoryScreen navigation={navigation} onBack={() => navigation.goBack()} initialSubTab="members" />}
+      </Stack.Screen>
+      <Stack.Screen name="Messages">
+        {({
+        navigation,
+        route
+      }) => <MessagesScreen onBack={() => navigation.goBack()} navigation={navigation} route={route} />}
       </Stack.Screen>
       <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
       <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
       <Stack.Screen name="EditDetails" component={EditDetailsScreen} />
+      <Stack.Screen name="Notification" component={NotificationScreen} />
     </Stack.Navigator>;
 }
+function CustomAlertModal({ config, onClose }) {
+  if (!config) return null;
+
+  const { title, message, buttons } = config;
+  const alertButtons = buttons && buttons.length > 0 ? buttons : [{ text: 'OK' }];
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={config !== null}
+      onRequestClose={onClose}
+    >
+      <View style={appModalStyles.modalOverlay}>
+        <View style={appModalStyles.confirmModalContent}>
+          {title ? <Text style={appModalStyles.confirmModalTitle}>{title}</Text> : null}
+          {message ? <Text style={appModalStyles.confirmModalBody}>{message}</Text> : null}
+          <View style={appModalStyles.confirmModalButtons}>
+            {alertButtons.map((btn, idx) => {
+              const isDestructive = btn.style === 'destructive';
+              const isCancel = btn.style === 'cancel';
+              
+              let textColor = '#0D3866'; // Default primary blue
+              if (isDestructive) textColor = '#EF4444'; // Red
+              else if (isCancel) textColor = '#64748B'; // Slate grey
+
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={appModalStyles.confirmModalBtn}
+                  onPress={() => {
+                    onClose();
+                    if (btn.onPress) {
+                      btn.onPress();
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[appModalStyles.btnText, { color: textColor }]}>
+                    {btn.text.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const appModalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  confirmModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20, // Round corner box!
+    padding: 24,
+    width: '85%',
+    maxWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8
+  },
+  confirmModalBody: {
+    fontSize: 15,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 24
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center'
+  },
+  confirmModalBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginLeft: 12
+  },
+  btnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5
+  }
+});
+
 export default function App() {
-  const container = <NavigationContainer>
-      <RootNavigator />
-    </NavigationContainer>;
+  const [alertConfig, setAlertConfig] = React.useState(null);
+
+  React.useEffect(() => {
+    alertTrigger = (title, message, buttons, options) => {
+      setAlertConfig({ title, message, buttons, options });
+    };
+    return () => {
+      alertTrigger = null;
+    };
+  }, []);
+
+  const container = <SafeAreaProvider>
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>;
 
   // Wrap in a phone frame on Web for visual fidelity
   if (Platform.OS === 'web') {
@@ -241,19 +278,21 @@ export default function App() {
         }}>
             {container}
           </View>
-          <StatusBar style="auto" />
+          <StatusBar style="dark" />
+          <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(null)} />
         </View>
       </View>;
   }
   return <>
       {container}
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
+      <CustomAlertModal config={alertConfig} onClose={() => setAlertConfig(null)} />
     </>;
 }
 const styles = StyleSheet.create({
   webContainer: {
-    width: '100vw',
-    height: '100vh',
+    width: '100%',
+    height: '100%',
     backgroundColor: '#f1f5f9',
     // Slate background for web
     justifyContent: 'center',

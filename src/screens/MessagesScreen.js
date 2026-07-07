@@ -5,7 +5,6 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Alert,
   StyleSheet,
@@ -14,9 +13,8 @@ import {
   Keyboard,
   Modal,
   StatusBar,
-  Switch,
-  PanResponder,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Search,
   Plus,
@@ -53,7 +51,11 @@ import {
   Info,
   MapPin,
   MessageCircle,
-  Trash2,
+  Mail,
+  Megaphone,
+  User,
+  Calendar,
+  ArrowUp,
 } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { supabase } from '../config/supabase';
@@ -70,26 +72,6 @@ const DirectoryBookIcon = ({ color }) => (
       <Path d="M16.5 12.5l2.5 2.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </Svg>
   </View>
-);
-
-// Custom CameraPlusIcon SVG
-const CameraPlusIcon = ({ color = '#0E3866', size = 32 }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M14.5 4h-5L8 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2v-6"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Circle cx="12" cy="13" r="3" stroke={color} strokeWidth="2" />
-    <Path
-      d="M19 2v6M16 5h6"
-      stroke={color}
-      strokeWidth="2.5"
-      strokeLinecap="round"
-    />
-  </Svg>
 );
 
 // Keypad 3x3 Dots Grid Icon
@@ -129,20 +111,44 @@ const DoubleBubbleSvg = ({ color = '#134074', size = 20 }) => (
   </Svg>
 );
 
-export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
-  const [activeSegment, setActiveSegment] = useState('dms'); // Default to Direct Messages
+export const MessagesScreen = ({ onBack, onTabPress, route, navigation }) => {
+  const [activeSegment, setActiveSegment] = useState(route?.params?.activeSegment || 'dms'); // Default to Direct Messages (Message)
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  
+
+  const [reports, setReports] = useState([
+    {
+      id: 'rep_1',
+      reporterName: 'Sanjay Ramasamy',
+      reportedUser: 'Elena Rodriguez',
+      reason: 'Spamming unrelated financial links',
+      content: 'Check out this external crypto advisory website: crypto-tax-avoidance.com for tax credits!',
+      communityName: 'Announcements (Tax Compliance)',
+      communityId: 'tc_announcements',
+      reportedUserId: 'elena',
+      status: 'Pending',
+      date: 'Today, 10:15 AM'
+    },
+    {
+      id: 'rep_2',
+      reporterName: 'Ram Kumar',
+      reportedUser: 'Sanjeev Senthil',
+      reason: 'Inappropriate language & arguments',
+      content: 'Your tax calculations are completely stupid and invalid. You have no idea what you are doing.',
+      communityName: 'Corporate Tax Auditing',
+      communityId: 'tc_corporate',
+      reportedUserId: 'sanjeev_s',
+      status: 'Pending',
+      date: 'Yesterday, 4:20 PM'
+    }
+  ]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [selectedCommunity, setSelectedCommunity] = useState(null);
+
   // Create group form states
   const [groupName, setGroupName] = useState('');
   const [groupCategory, setGroupCategory] = useState('Specialized');
   const [groupDescription, setGroupDescription] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
-  const [memberLimit, setMemberLimit] = useState(500);
-  const [coverImage, setCoverImage] = useState(null);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [sliderWidth, setSliderWidth] = useState(300);
 
   // Selected chat details
   const [selectedChat, setSelectedChat] = useState(null);
@@ -158,6 +164,20 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
   const [attachedDocument, setAttachedDocument] = useState(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollViewRef = useRef(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const listScrollViewRef = useRef(null);
+
+  const handleScrollList = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 300);
+  };
+  const scrollToTopList = () => {
+    listScrollViewRef.current?.scrollTo({
+      y: 0,
+      animated: true
+    });
+  };
 
   // Secure Calling Session States
   const [activeCall, setActiveCall] = useState(null);
@@ -252,114 +272,57 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
     }
   }, [selectedChat, chatMessages]);
 
-  // Handle resetting screen state or opening specific chat when screen receives focus
+  // Handle resetting screen state when screen receives focus
   useEffect(() => {
     if (navigation) {
       const unsubscribe = navigation.addListener('focus', () => {
-        // Check if we navigated with a specific chat target
-        const params = navigation.getState()?.routes?.find(r => r.name === 'Messages')?.params;
-        const targetChatName = params?.chatName;
-        
-        if (targetChatName) {
-          let matchingChat = dms.find(d => 
-            d.name.toLowerCase().includes(targetChatName.toLowerCase()) || 
-            targetChatName.toLowerCase().includes(d.name.toLowerCase())
-          );
-          
-          if (!matchingChat) {
-            // Create a new DM dynamically in store
-            const newDmId = `dm_${Date.now()}`;
-            const newDm = {
-              id: newDmId,
-              name: targetChatName,
-              text: 'Start of secured channel...',
-              time: 'Just now',
-              avatar: params?.chatAvatar || require('../../assets/admin_profile.png'),
-              unread: false,
-              viewed: true
-            };
-            dbStore.dms = [...dbStore.dms, newDm];
-            dbStore.messages[newDmId] = [];
-            dbStore.notify();
-            matchingChat = newDm;
-          }
-          
-          setSelectedChat(matchingChat);
-          setActiveSegment('dms');
-          // Clear the params so they don't persist next time we focus Messages
-          navigation.setParams({ chatName: undefined, chatAvatar: undefined });
+        const params = route?.params;
+        if (params?.activeSegment) {
+          setSelectedChat(null);
+          setSelectedGroup(null);
+          setShowNewMessage(false);
+          setActiveSegment(params.activeSegment);
+          setSelectedCommunity(null);
+          navigation.setParams({ activeSegment: null });
           return;
         }
-
+        if (params?.groupId) {
+          const grp = dbStore.getGroups().find(g => g.id === params.groupId);
+          if (grp) {
+            setSelectedGroup(grp);
+            setSelectedChat(null);
+            setShowNewMessage(false);
+            setActiveSegment('groups');
+            navigation.setParams({ groupId: null });
+            return;
+          }
+        }
+        if (params?.chatId) {
+          const chat = dbStore.getDms().find(d => d.id === params.chatId);
+          if (chat) {
+            setSelectedChat(chat);
+            setSelectedGroup(null);
+            setShowNewMessage(false);
+            setActiveSegment('dms');
+            navigation.setParams({ chatId: null });
+            return;
+          }
+        }
         setSelectedChat(null);
         setSelectedGroup(null);
         setShowNewMessage(false);
         setActiveSegment('dms');
+        setSelectedCommunity(null);
       });
       return unsubscribe;
     }
-  }, [navigation, dms]);
-
-  const handleCoverImagePick = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Sorry, we need gallery permissions to upload a cover image!');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 1
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setCoverImage(result.assets[0].uri);
-      }
-    } catch (err) {
-      Alert.alert('Error', 'Failed to pick image from device.');
-    }
-  };
-
-  const handleSliderPress = (event) => {
-    const x = event.nativeEvent.locationX;
-    const pct = Math.max(0, Math.min(1, x / sliderWidth));
-    const val = Math.max(50, Math.min(1000, Math.round((50 + pct * 950) / 50) * 50));
-    setMemberLimit(val);
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dx) > 3;
-      },
-      onPanResponderGrant: (evt, gestureState) => {
-        const x = evt.nativeEvent.locationX;
-        const pct = Math.max(0, Math.min(1, x / sliderWidth));
-        const val = Math.max(50, Math.min(1000, Math.round((50 + pct * 950) / 50) * 50));
-        setMemberLimit(val);
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        const x = evt.nativeEvent.locationX;
-        const pct = Math.max(0, Math.min(1, x / sliderWidth));
-        const val = Math.max(50, Math.min(1000, Math.round((50 + pct * 950) / 50) * 50));
-        setMemberLimit(val);
-      },
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderRelease: () => {},
-    })
-  ).current;
+  }, [navigation, route]);
 
   const handleCreateGroup = () => {
     if (!groupName || !groupDescription) {
       Alert.alert('Incomplete Fields', 'Please fill in the group name and description.');
       return;
     }
-
-    let groupIcon = 'chat';
-    if (groupCategory === 'Specialized') groupIcon = 'gavel';
-    else if (groupCategory === 'Regional Chapters') groupIcon = 'location';
-    else if (groupCategory === 'Confidential') groupIcon = 'shield';
 
     const newGroup = {
       id: `group_${Date.now()}`,
@@ -368,10 +331,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
       badge: groupCategory.toUpperCase(),
       description: groupDescription,
       member_count: 1,
-      icon: groupIcon,
-      isPublic: isPublic,
-      memberLimit: memberLimit,
-      coverImage: coverImage,
+      icon: 'chat'
     };
 
     // Add to store
@@ -381,10 +341,6 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
 
     setGroupName('');
     setGroupDescription('');
-    setGroupCategory('Specialized');
-    setIsPublic(false);
-    setMemberLimit(500);
-    setCoverImage(null);
     setShowCreateGroup(false);
     Alert.alert('Success', `Group "${groupName}" created successfully!`);
   };
@@ -457,8 +413,56 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
     }
   };
 
+  // Contact Search and Selection compiling
+  const staticContacts = [
+    { id: 'elena', name: 'Elena Rodriguez', designation: 'Senior Tax Consultant', avatar: require('../../assets/elena_profile.png') },
+    { id: 'marcus_c', name: 'Marcus Chen', designation: 'Regional Audit Director', avatar: require('../../assets/admin_profile.png') },
+    { id: 'sarah_h', name: 'Sarah Henderson', designation: 'Compliance Officer', initials: 'SH', initialsBg: '#134074', initialsColor: '#FFFFFF' },
+    { id: 'sanjay_r', name: 'Sanjay Ramasamy', designation: 'Senior Tax Consultant', avatar: require('../../assets/admin_profile.png') },
+    { id: 'ram_k', name: 'Ram Kumar', designation: 'Audit Director', avatar: require('../../assets/admin_profile.png') },
+    { id: 'sanjeev_s', name: 'Sanjeev Senthil', designation: 'Forensic Accountant', avatar: require('../../assets/admin_profile.png') },
+    { id: 'janice_l', name: 'Janice L.', designation: 'Recent Member', avatar: require('../../assets/elena_profile.png') },
+    { id: 'robert_d', name: 'Robert D.', designation: 'Recent Member', avatar: require('../../assets/admin_profile.png') },
+    { id: 'emily_k', name: 'Emily K.', designation: 'Recent Member', avatar: require('../../assets/elena_profile.png') },
+    { id: 'saja', name: 'Saja', designation: 'Recent Member', avatar: require('../../assets/elena_profile.png') },
+  ];
+
+  const memberContacts = (groups && dbStore.getMembers() || []).map(m => ({
+    id: m.id || m.memberId,
+    name: m.name,
+    designation: m.designation || m.company,
+    avatar: m.avatar
+  }));
+
+  const approvedContacts = (groups && dbStore.getApprovedList() || []).map(a => ({
+    id: a.id,
+    name: a.user_name,
+    designation: a.designation,
+    avatar: a.avatar
+  }));
+
+  const allContactsMap = new Map();
+  [...staticContacts, ...memberContacts, ...approvedContacts].forEach(c => {
+    if (c && c.name) {
+      allContactsMap.set(c.name.toLowerCase(), c);
+    }
+  });
+  const allContacts = Array.from(allContactsMap.values());
+
+  const filteredContacts = allContacts.filter(c => 
+    c.name.toLowerCase().includes(contactSearchQuery.toLowerCase()) || 
+    (c.designation && c.designation.toLowerCase().includes(contactSearchQuery.toLowerCase()))
+  );
+
+  const handleContactPress = async (contact) => {
+    const dm = await dbStore.getOrCreateDm(contact.id, contact.name, contact.avatar);
+    setSelectedChat(dm);
+    setShowNewMessage(false);
+    setContactSearchQuery('');
+  };
+
   // Filters
-  const filteredDMs = dms.filter(dm => 
+  const filteredDMs = dms.filter(dm =>
     dm.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     dm.text.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -466,11 +470,11 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
   const currentChatMsgs = selectedChat ? (chatMessages[selectedChat.id] || []) : [];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {selectedChat ? (
         /* Chat Details View */
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           {/* Header */}
@@ -479,28 +483,45 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
               <ArrowLeft size={22} color="#134074" />
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
-                if (navigation) {
+                if (navigation && !selectedChat.category) {
                   const isElena = selectedChat.name.includes('Elena');
                   const isAlistair = selectedChat.name.includes('Alistair');
                   navigation.navigate('MemberProfile', {
                     name: selectedChat.name,
                     role: isElena ? 'Partner' : isAlistair ? 'Chief Auditor' : 'Senior Auditor',
-                    branch: isAlistair ? 'London Branch' : 'Regional Branch',
-                    tierLabel: isAlistair || isElena ? 'Senior Fellow' : 'Platinum Member',
+                    branch: (isAlistair || isElena) ? 'Main Office' : 'Regional Branch',
+                    tierLabel: isAlistair || isElena ? 'Lifetime Fellow' : 'Premium Member',
+                    tier: isAlistair || isElena ? 'Lifetime' : 'Premium',
                     memberId: isAlistair ? 'TAS-9920-PL' : isElena ? 'TAS-4412-SR' : 'TAS-2024-8842',
                     joinDate: 'Joined: Jan 2021',
                     email: isAlistair ? 'a.vance@tas-governance.org' : isElena ? 'elena.rodriguez@tas-governance.org' : 's.jenkins@pkf-international.com',
                     avatar: selectedChat.avatar
                   });
+                } else if (selectedChat.category) {
+                  Alert.alert('Group Info', `${selectedChat.name}\nCategory: ${selectedChat.category}`);
                 }
               }}
               style={styles.chatHeaderProfile}
             >
               <View style={styles.avatarContainer}>
-                <Image source={selectedChat.avatar} style={styles.chatAvatar} />
-                <View style={styles.onlineDot} />
+                {selectedChat.avatar ? (
+                  <Image source={selectedChat.avatar} style={styles.chatAvatar} />
+                ) : selectedChat.initials ? (
+                  <View style={[styles.chatAvatar, { backgroundColor: selectedChat.initialsBg || '#E2FBE8', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ color: selectedChat.initialsColor || '#0D3866', fontWeight: 'bold', fontSize: 14 }}>{selectedChat.initials}</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.chatAvatar, { backgroundColor: selectedChat.iconBg || '#E8F5E9', justifyContent: 'center', alignItems: 'center' }]}>
+                    {selectedChat.icon === 'megaphone' ? (
+                      <Megaphone size={16} color={selectedChat.iconColor || '#4CAF50'} />
+                    ) : (
+                      <UsersIcon size={16} color={selectedChat.iconColor || '#FFB300'} />
+                    )}
+                  </View>
+                )}
+                <View style={[styles.onlineDot, { backgroundColor: selectedChat.online ? '#22C55E' : '#94A3B8' }]} />
               </View>
               <View style={styles.chatHeaderInfo}>
                 <Text style={styles.chatName}>{selectedChat.name}</Text>
@@ -508,33 +529,179 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                   styles.chatStatus,
                   dbStore.getTypingStatus(selectedChat.id) === 'typing...' && { color: '#00A884', fontWeight: '900', fontStyle: 'italic' }
                 ]}>
-                  {dbStore.getTypingStatus(selectedChat.id)}
+                  {selectedChat.category ? `${selectedChat.category}` : dbStore.getTypingStatus(selectedChat.id)}
                 </Text>
               </View>
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => { setActiveCall('incoming'); setCallType('voice'); }} style={{ padding: 8, marginRight: 4 }}>
-                <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="#134074" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => { setActiveCall('incoming'); setCallType('video'); }} style={{ padding: 8, marginRight: 4 }}>
-                <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <Path d="M23 7l-7 5 7 5V7z" stroke="#134074" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  <Rect x="1" y="5" width="15" height="14" rx="2" ry="2" stroke="#134074" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
-              </TouchableOpacity>
+              {!selectedChat.category && (
+                <>
+                  <TouchableOpacity
+                    style={styles.callHeaderButton}
+                    onPress={() => {
+                      setCallType('video');
+                      setActiveCall('video');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Video size={22} color="#134074" />
+                  </TouchableOpacity>
 
-              <TouchableOpacity style={styles.moreButton} onPress={() => Alert.alert('Options', 'Select options:')}>
+                  <TouchableOpacity
+                    style={styles.callHeaderButton}
+                    onPress={() => {
+                      setCallType('voice');
+                      setActiveCall('audio');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Phone size={22} color="#134074" />
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity 
+                style={styles.moreButton} 
+                onPress={() => {
+                  if (selectedChat.category) {
+                    Alert.alert(
+                      'Options', 
+                      'Select options:',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Edit Details', 
+                          onPress: () => {
+                            navigation.navigate('EditDetails', { 
+                              type: 'community',
+                              communityData: {
+                                id: selectedChat.id,
+                                name: selectedChat.name,
+                                description: selectedChat.text || 'Tax and auditing collaboration channel.',
+                                category: selectedChat.category,
+                                membersCount: '4 Members'
+                              }
+                            });
+                          } 
+                        }
+                      ]
+                    );
+                  } else {
+                    Alert.alert('Options', 'Direct message options.');
+                  }
+                }}
+              >
                 <MoreVertical size={22} color="#134074" />
               </TouchableOpacity>
             </View>
           </View>
 
+          {selectedReport && selectedChat && selectedChat.id === selectedReport.communityId && (
+            <View style={styles.moderationBanner}>
+              <View style={styles.moderationBannerHeader}>
+                <Shield size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                <Text style={styles.moderationBannerTitle}>Active Report: {selectedReport.reason}</Text>
+                <TouchableOpacity onPress={() => setSelectedReport(null)} style={styles.moderationCloseBtn}>
+                  <X size={16} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.moderationReportedText}>
+                <Text style={{ fontWeight: 'bold' }}>Reported User: </Text>{selectedReport.reportedUser}
+              </Text>
+              <Text style={styles.moderationContentText} numberOfLines={2}>
+                "{selectedReport.content}"
+              </Text>
+              <View style={styles.moderationActionsRow}>
+                <TouchableOpacity 
+                  style={[styles.moderationActionBtn, { backgroundColor: '#F59E0B' }]} 
+                  onPress={() => {
+                    Alert.alert(
+                      'Close Channel', 
+                      `Are you sure you want to close the channel "${selectedChat.name}"?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Close Channel', 
+                          onPress: () => {
+                            selectedChat.text = "🔒 Channel closed by administrator.";
+                            selectedChat.unreadCount = 0;
+                            dbStore.notify();
+                            setSelectedReport(null);
+                            setSelectedChat(null);
+                            Alert.alert('Success', 'The channel has been closed.');
+                          } 
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.moderationActionBtnText}>Close Channel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.moderationActionBtn, { backgroundColor: '#EF4444' }]} 
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Channel', 
+                      `Are you sure you want to delete the channel "${selectedChat.name}"?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Delete', 
+                          style: 'destructive',
+                          onPress: () => {
+                            dbStore.groups = dbStore.groups.filter(g => g.id !== selectedChat.id);
+                            dbStore.notify();
+                            setSelectedReport(null);
+                            setSelectedChat(null);
+                            Alert.alert('Success', 'The channel has been deleted.');
+                          } 
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.moderationActionBtnText}>Delete Channel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.moderationActionBtn, { backgroundColor: '#3B82F6' }]} 
+                  onPress={() => {
+                    const userDm = dms.find(d => d.id === selectedReport.reportedUserId);
+                    if (userDm) {
+                      setSelectedChat(userDm);
+                      setSelectedReport(null);
+                      setTypedMessage(`WARNING: You have been reported in "${selectedReport.communityName}" for: "${selectedReport.reason}". Please adhere to the community guidelines.`);
+                    } else {
+                      const newDm = {
+                        id: selectedReport.reportedUserId,
+                        name: selectedReport.reportedUser,
+                        text: 'Active warning',
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        unread: false,
+                        viewed: true,
+                        online: true,
+                        initials: selectedReport.reportedUser.split(' ').map(n => n[0]).join(''),
+                        initialsBg: '#FEE2E2',
+                        initialsColor: '#991B1B',
+                        avatar: null
+                      };
+                      dbStore.dms = [newDm, ...dbStore.dms];
+                      dbStore.notify();
+                      setSelectedChat(newDm);
+                      setSelectedReport(null);
+                      setTypedMessage(`WARNING: You have been reported in "${selectedReport.communityName}" for: "${selectedReport.reason}". Please adhere to the community guidelines.`);
+                    }
+                  }}
+                >
+                  <Text style={styles.moderationActionBtnText}>Send Warning</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* Messages Timeline */}
-          <ScrollView 
+          <ScrollView
             ref={scrollViewRef}
             style={styles.messagesArea}
             contentContainerStyle={[
@@ -550,92 +717,84 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
             {currentChatMsgs.map((msg) => {
               const isMe = msg.sender === 'me';
               return (
-                <View 
-                  key={msg.id} 
+                <View
+                  key={msg.id}
                   style={[
                     styles.messageRow,
                     isMe ? styles.messageRowRight : styles.messageRowLeft
                   ]}
                 >
                   {!isMe && (
-                    <Image source={selectedChat.avatar} style={styles.messageAvatar} />
-                  )}
-
-                  {isMe && (
-                    <TouchableOpacity 
-                      onPress={() => {
-                        Alert.alert(
-                          'Delete Message',
-                          'Are you sure you want to delete this message?',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { 
-                              text: 'Delete', 
-                              style: 'destructive',
-                              onPress: () => dbStore.deleteMessage(selectedChat.id, msg.id)
-                            }
-                          ]
-                        );
-                      }}
-                      style={{
-                        marginRight: 6,
-                        alignSelf: 'center',
-                        padding: 6,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Trash2 size={15} color="#EF4444" />
-                    </TouchableOpacity>
-                  )}
-
-                  <View 
-                    style={[
-                      styles.messageBubble,
-                      isMe ? styles.bubbleRight : styles.bubbleLeft
-                    ]}
-                  >
-                    {msg.image && (
-                      <Image 
-                        source={{ uri: msg.image }} 
-                        style={{ width: 200, height: 150, borderRadius: 8, marginBottom: 6 }} 
-                        resizeMode="cover"
-                      />
-                    )}
-
-                    {msg.document && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isMe ? '#0f325c' : '#dbeafe', borderRadius: 8, padding: 8, marginBottom: 6 }}>
-                        <FileText size={18} color={isMe ? '#FFFFFF' : '#134074'} style={{ marginRight: 6 }} />
-                        <Text style={{ fontSize: 13, color: isMe ? '#FFFFFF' : '#134074', fontWeight: 'bold' }}>
-                          {msg.document}
-                        </Text>
+                    selectedChat.avatar ? (
+                      <Image source={selectedChat.avatar} style={styles.messageAvatar} />
+                    ) : selectedChat.initials ? (
+                      <View style={[styles.messageAvatar, { backgroundColor: selectedChat.initialsBg || '#E9F0FA', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={{ color: selectedChat.initialsColor || '#134074', fontWeight: 'bold', fontSize: 10 }}>{selectedChat.initials}</Text>
                       </View>
+                    ) : (
+                      <View style={[styles.messageAvatar, { backgroundColor: selectedChat.iconBg || '#E8F5E9', justifyContent: 'center', alignItems: 'center' }]}>
+                        {selectedChat.icon === 'megaphone' ? (
+                          <Megaphone size={12} color={selectedChat.iconColor || '#4CAF50'} />
+                        ) : (
+                          <UsersIcon size={12} color={selectedChat.iconColor || '#FFB300'} />
+                        )}
+                      </View>
+                    )
+                  )}
+
+                  <View style={{ flex: 1, alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                    {!isMe && msg.senderName && (
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', marginLeft: 8, marginBottom: 2 }}>{msg.senderName}</Text>
                     )}
+                    <View
+                      style={[
+                        styles.messageBubble,
+                        isMe ? styles.bubbleRight : styles.bubbleLeft
+                      ]}
+                    >
+                      {msg.image && (
+                        <Image
+                          source={{ uri: msg.image }}
+                          style={{ width: 200, height: 150, borderRadius: 8, marginBottom: 6 }}
+                          resizeMode="cover"
+                        />
+                      )}
 
-                    {msg.text ? (
-                      <Text style={[styles.messageText, isMe ? styles.textRight : styles.textLeft]}>
-                        {msg.text}
-                      </Text>
-                    ) : null}
-
-                    <View style={styles.bubbleFooter}>
-                      <Text style={[styles.messageTime, isMe ? styles.timeRight : styles.timeLeft]}>
-                        {msg.time}
-                      </Text>
-                      {isMe && (
-                        <View style={{ marginLeft: 4, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center' }}>
-                          {msg.status === 'READ' ? (
-                            <Svg width="14" height="10" viewBox="0 0 16 12" fill="none">
-                              <Path d="M1.5 5.5l3.5 3.5 9.5-9" stroke="#53BDEB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <Path d="M5.5 5.5l3.5 3.5 5.5-5" stroke="#53BDEB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </Svg>
-                          ) : (
-                            <Svg width="14" height="10" viewBox="0 0 16 12" fill="none">
-                              <Path d="M1.5 5.5l3.5 3.5 9.5-9" stroke="#8696A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                              <Path d="M5.5 5.5l3.5 3.5 5.5-5" stroke="#8696A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </Svg>
-                          )}
+                      {msg.document && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isMe ? '#0f325c' : '#dbeafe', borderRadius: 8, padding: 8, marginBottom: 6 }}>
+                          <FileText size={18} color={isMe ? '#FFFFFF' : '#134074'} style={{ marginRight: 6 }} />
+                          <Text style={{ fontSize: 13, color: isMe ? '#FFFFFF' : '#134074', fontWeight: 'bold' }}>
+                            {msg.document}
+                          </Text>
                         </View>
                       )}
+
+                      {msg.text ? (
+                        <Text style={[styles.messageText, isMe ? styles.textRight : styles.textLeft]}>
+                          {msg.text}
+                        </Text>
+                      ) : null}
+
+                      <View style={styles.bubbleFooter}>
+                        <Text style={[styles.messageTime, isMe ? styles.timeRight : styles.timeLeft]}>
+                          {msg.time}
+                        </Text>
+                        {isMe && (
+                          <View style={{ marginLeft: 4, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center' }}>
+                            {msg.status === 'READ' ? (
+                              <Svg width="14" height="10" viewBox="0 0 16 12" fill="none">
+                                <Path d="M1.5 5.5l3.5 3.5 9.5-9" stroke="#53BDEB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <Path d="M5.5 5.5l3.5 3.5 5.5-5" stroke="#53BDEB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </Svg>
+                            ) : (
+                              <Svg width="14" height="10" viewBox="0 0 16 12" fill="none">
+                                <Path d="M1.5 5.5l3.5 3.5 9.5-9" stroke="#8696A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <Path d="M5.5 5.5l3.5 3.5 5.5-5" stroke="#8696A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </Svg>
+                            )}
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -644,12 +803,12 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
           </ScrollView>
 
           {/* Chat Input Toolbar */}
-          <View 
+          <View
             style={[
               styles.inputToolbarContainer,
               {
-                marginBottom: isKeyboardVisible 
-                  ? 10 
+                marginBottom: isKeyboardVisible
+                  ? 10
                   : (Platform.OS === 'ios' ? 90 : 76)
               }
             ]}
@@ -710,14 +869,14 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
             )}
 
             <View style={styles.inputControlsRow}>
-              <TouchableOpacity 
-                onPress={() => setShowAttachmentMenu(!showAttachmentMenu)} 
+              <TouchableOpacity
+                onPress={() => setShowAttachmentMenu(!showAttachmentMenu)}
                 style={styles.plusButton}
               >
                 {showAttachmentMenu ? <X size={22} color="#134074" /> : <Plus size={22} color="#134074" />}
               </TouchableOpacity>
 
-              <TextInput 
+              <TextInput
                 placeholder="Type a message..."
                 placeholderTextColor="#94A3B8"
                 value={typedMessage}
@@ -732,6 +891,150 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
             </View>
           </View>
         </KeyboardAvoidingView>
+      ) : selectedCommunity ? (
+        /* WhatsApp-style Community Detail View */
+        <View style={{ flex: 1, backgroundColor: '#F4F7FC' }}>
+          {/* Header */}
+          <View style={styles.whatsappHeader}>
+            <TouchableOpacity onPress={() => setSelectedCommunity(null)} style={styles.whatsappBackBtn}>
+              <ArrowLeft size={22} color="#134074" />
+            </TouchableOpacity>
+            <Text style={styles.whatsappHeaderTitle} numberOfLines={1}>
+              {selectedCommunity.name}
+            </Text>
+            <TouchableOpacity 
+              onPress={() => {
+                Alert.alert(
+                  'Community Options',
+                  'Select action:',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Edit Details', 
+                      onPress: () => {
+                        navigation.navigate('EditDetails', { 
+                          type: 'community',
+                          communityData: {
+                            id: selectedCommunity.name,
+                            name: selectedCommunity.name,
+                            description: 'Tax and auditing collaboration network for registered professionals.',
+                            category: selectedCommunity.name,
+                            membersCount: selectedCommunity.membersCount
+                          }
+                        });
+                      } 
+                    }
+                  ]
+                );
+              }}
+              style={styles.whatsappOptionsBtn}
+            >
+              <MoreVertical size={22} color="#134074" />
+            </TouchableOpacity>
+          </View>
+ 
+          <ScrollView style={{ flex: 1, backgroundColor: '#F4F7FC' }} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* Announcements Card */}
+            <View style={styles.whatsappAnnouncementCard}>
+              <TouchableOpacity 
+                onPress={() => {
+                  const annChannel = selectedCommunity.channels.find(c => c.name.toLowerCase().includes('announce'));
+                  if (annChannel) {
+                    setSelectedChat(annChannel);
+                  } else if (selectedCommunity.channels.length > 0) {
+                    setSelectedChat(selectedCommunity.channels[0]);
+                  }
+                }}
+                style={styles.whatsappAnnRow}
+              >
+                <View style={[styles.whatsappAnnIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                  <Megaphone size={20} color="#134074" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.whatsappAnnTitle}>Announcements</Text>
+                    <Text style={styles.whatsappAnnDate}>06/06/2026</Text>
+                  </View>
+                  <Text style={styles.whatsappAnnSubtitle} numberOfLines={1}>
+                    ~Admin TAS: 📄 Resources are updated...
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Groups you're in Section */}
+            <View style={styles.whatsappSectionHeader}>
+              <Text style={styles.whatsappSectionHeaderText}>Groups you're in</Text>
+            </View>
+
+            {/* Add Group Row */}
+            <TouchableOpacity 
+              onPress={() => setShowCreateGroup(true)}
+              style={styles.whatsappAddGroupRow}
+            >
+              <View style={styles.whatsappAddGroupIconCircle}>
+                <Plus size={20} color="#134074" />
+              </View>
+              <Text style={styles.whatsappAddGroupText}>Add group</Text>
+            </TouchableOpacity>
+
+            {/* Joined Channels List */}
+            {selectedCommunity.channels.map((channel) => (
+              <TouchableOpacity 
+                key={channel.id} 
+                onPress={() => {
+                  setSelectedChat(channel);
+                }}
+                style={styles.whatsappChannelRow}
+              >
+                <View style={[styles.whatsappChannelIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                  <UsersIcon size={18} color="#134074" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.whatsappChannelTitle}>{channel.name}</Text>
+                    <Text style={styles.whatsappChannelTime}>{channel.time}</Text>
+                  </View>
+                  <Text style={styles.whatsappChannelSubtitle} numberOfLines={1}>
+                    {channel.text}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Groups you can join Section */}
+            <View style={styles.whatsappSectionHeader}>
+              <Text style={styles.whatsappSectionHeaderText}>Groups you can join</Text>
+            </View>
+
+            {/* Mock Groups you can join */}
+            <TouchableOpacity 
+              onPress={() => Alert.alert('Request Sent', 'Your request to join JUNIORS #2 has been sent.')}
+              style={styles.whatsappChannelRow}
+            >
+              <View style={[styles.whatsappChannelIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                <UsersIcon size={18} color="#134074" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.whatsappChannelTitle}>JUNIORS #2</Text>
+                <Text style={styles.whatsappChannelSubtitle}>173 members</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => Alert.alert('Request Sent', 'Your request to join Seniors has been sent.')}
+              style={styles.whatsappChannelRow}
+            >
+              <View style={[styles.whatsappChannelIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                <UsersIcon size={18} color="#134074" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.whatsappChannelTitle}>{selectedCommunity.name.split(' ')[0]} - Seniors (3rd & Final Year)</Text>
+                <Text style={styles.whatsappChannelSubtitle}>Request to join</Text>
+              </View>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
       ) : selectedGroup ? (
         /* Community Group Feed View (Image 1) */
         <View style={{ flex: 1 }}>
@@ -746,8 +1049,8 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            style={{ flex: 1, backgroundColor: '#F4F7FB' }} 
+          <ScrollView
+            style={{ flex: 1, backgroundColor: '#F4F7FB' }}
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
           >
@@ -767,7 +1070,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                 </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
                   <Text style={styles.groupTitleText}>
-                    {selectedGroup.name}
+                    {selectedGroup.id === 'tax_ethics' ? 'Tax Ethics & Compliance' : selectedGroup.name}
                   </Text>
                   <Text style={styles.groupDescriptionText}>
                     {selectedGroup.description || 'Discussing the latest regulatory changes and ethical standards.'}
@@ -776,7 +1079,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
               </View>
 
               <View style={styles.groupMetaRow}>
-                <Text style={styles.groupMetaText}>{selectedGroup.member_count.toLocaleString()} Members</Text>
+                <Text style={styles.groupMetaText}>{(selectedGroup.member_count ?? 1).toLocaleString()} Members</Text>
                 <View style={styles.verifiedSocietyBadge}>
                   <Shield size={12} color="#15803D" style={{ marginRight: 4 }} />
                   <Text style={styles.verifiedSocietyBadgeText}>Verified Society</Text>
@@ -873,7 +1176,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                     {/* Post Card Footer Actions */}
                     <View style={styles.postFooterActionsRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           onPress={() => dbStore.likeGroupPost(selectedGroup.id, post.id)}
                           style={styles.postFooterActionItem}
                         >
@@ -881,7 +1184,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                           <Text style={styles.postFooterActionText}>{post.likes}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           onPress={() => Alert.alert('Comments', 'Opening comments section')}
                           style={[styles.postFooterActionItem, { marginLeft: 16 }]}
                         >
@@ -889,7 +1192,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                           <Text style={styles.postFooterActionText}>{post.comments}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           onPress={() => Alert.alert('Share', 'Post shared to external channels')}
                           style={[styles.postFooterActionItem, { marginLeft: 16 }]}
                         >
@@ -898,14 +1201,14 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                         </TouchableOpacity>
                       </View>
 
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => dbStore.bookmarkGroupPost(selectedGroup.id, post.id)}
                         style={{ padding: 4 }}
                       >
-                        <Bookmark 
-                          size={18} 
-                          color={post.bookmarked ? '#103B6B' : '#64748B'} 
-                          fill={post.bookmarked ? '#103B6B' : 'none'} 
+                        <Bookmark
+                          size={18}
+                          color={post.bookmarked ? '#103B6B' : '#64748B'}
+                          fill={post.bookmarked ? '#103B6B' : 'none'}
                         />
                       </TouchableOpacity>
                     </View>
@@ -934,10 +1237,6 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                 <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Connect')}>
                   <UsersIcon size={24} color="#134074" />
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Directory')}>
-                  <DirectoryBookIcon color="#134074" />
-                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -947,7 +1246,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
         <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={styles.messagesHeaderContainer}>
-            <TouchableOpacity onPress={() => setShowNewMessage(false)} style={styles.backButton}>
+            <TouchableOpacity onPress={() => { setShowNewMessage(false); setContactSearchQuery(''); }} style={styles.backButton}>
               <ArrowLeft size={22} color="#134074" />
             </TouchableOpacity>
             <Text style={styles.messagesHeaderTitle}>New Message</Text>
@@ -958,23 +1257,13 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
             <View style={styles.searchCardContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
                 <Text style={styles.searchCardToLabel}>To:</Text>
-                
-                {selectedSuggestions.map(item => (
-                  <View key={item} style={styles.selectedToken}>
-                    <Text style={styles.selectedTokenText}>{item}</Text>
-                    <TouchableOpacity 
-                      onPress={() => setSelectedSuggestions(prev => prev.filter(t => t !== item))}
-                      style={{ marginLeft: 6 }}
-                    >
-                      <X size={12} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
 
                 <TextInput
                   placeholder="Search members..."
                   placeholderTextColor="#94A3B8"
                   style={styles.searchCardInput}
+                  value={contactSearchQuery}
+                  onChangeText={setContactSearchQuery}
                 />
               </View>
 
@@ -985,357 +1274,49 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
             </View>
 
             {/* Suggested Contacts Section */}
-            <Text style={styles.sectionHeaderTitle}>SUGGESTED CONTACTS</Text>
-            
-            <View style={styles.suggestedListContainer}>
-              {/* Elena Rodriguez */}
-              <View style={styles.suggestedItemRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <View style={styles.avatarWrapper}>
-                    <Image source={require('../../assets/elena_profile.png')} style={styles.suggestedAvatar} />
-                    <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
-                  </View>
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.suggestedName}>Elena Rodriguez</Text>
-                    <Text style={styles.suggestedRole}>Senior Tax Consultant</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (selectedSuggestions.includes('Elena Rodriguez')) {
-                      setSelectedSuggestions(prev => prev.filter(item => item !== 'Elena Rodriguez'));
-                    } else {
-                      setSelectedSuggestions(prev => [...prev, 'Elena Rodriguez']);
-                    }
-                  }}
-                  style={styles.plusCircleButton}
-                >
-                  <Text style={styles.plusCircleText}>
-                    {selectedSuggestions.includes('Elena Rodriguez') ? '✓' : '+'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Marcus Chen */}
-              <View style={styles.suggestedItemRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <View style={styles.avatarWrapper}>
-                    <Image source={require('../../assets/admin_profile.png')} style={styles.suggestedAvatar} />
-                    <View style={[styles.statusDot, { backgroundColor: '#94A3B8' }]} />
-                  </View>
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.suggestedName}>Marcus Chen</Text>
-                    <Text style={styles.suggestedRole}>Regional Audit Director</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (selectedSuggestions.includes('Marcus Chen')) {
-                      setSelectedSuggestions(prev => prev.filter(item => item !== 'Marcus Chen'));
-                    } else {
-                      setSelectedSuggestions(prev => [...prev, 'Marcus Chen']);
-                    }
-                  }}
-                  style={styles.plusCircleButton}
-                >
-                  <Text style={styles.plusCircleText}>
-                    {selectedSuggestions.includes('Marcus Chen') ? '✓' : '+'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Sarah Henderson */}
-              <View style={styles.suggestedItemRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <View style={styles.avatarWrapper}>
-                    <View style={[styles.suggestedAvatar, { backgroundColor: '#134074', justifyContent: 'center', alignItems: 'center' }]}>
-                      <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>SH</Text>
-                    </View>
-                    <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
-                  </View>
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.suggestedName}>Sarah Henderson</Text>
-                    <Text style={styles.suggestedRole}>Compliance Officer</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (selectedSuggestions.includes('Sarah Henderson')) {
-                      setSelectedSuggestions(prev => prev.filter(item => item !== 'Sarah Henderson'));
-                    } else {
-                      setSelectedSuggestions(prev => [...prev, 'Sarah Henderson']);
-                    }
-                  }}
-                  style={styles.plusCircleButton}
-                >
-                  <Text style={styles.plusCircleText}>
-                    {selectedSuggestions.includes('Sarah Henderson') ? '✓' : '+'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Recent Members Section */}
-            <Text style={styles.sectionHeaderTitle}>RECENT MEMBERS</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 16, marginTop: 10 }}>
-              <View style={styles.recentMemberColumn}>
-                <Image source={require('../../assets/elena_profile.png')} style={styles.recentAvatar} />
-                <Text style={styles.recentMemberName}>Janice L.</Text>
-              </View>
-              <View style={styles.recentMemberColumn}>
-                <Image source={require('../../assets/admin_profile.png')} style={styles.recentAvatar} />
-                <Text style={styles.recentMemberName}>Robert D.</Text>
-              </View>
-              <View style={styles.recentMemberColumn}>
-                <Image source={require('../../assets/elena_profile.png')} style={styles.recentAvatar} />
-                <Text style={styles.recentMemberName}>Emily K.</Text>
-              </View>
-              <View style={styles.recentMemberColumn}>
-                <Image source={require('../../assets/elena_profile.png')} style={styles.recentAvatar} />
-                <Text style={styles.recentMemberName}>Saja</Text>
-              </View>
-            </ScrollView>
-
-            {/* Start Chat Button */}
-            <TouchableOpacity 
-              onPress={() => {
-                if (selectedSuggestions.includes('Elena Rodriguez')) {
-                  const elenaDm = dms.find(d => d.id === 'elena');
-                  if (elenaDm) setSelectedChat(elenaDm);
-                } else if (selectedSuggestions.includes('Marcus Chen') || selectedSuggestions.includes('Marcus Thornton')) {
-                  const marcusDm = dms.find(d => d.id === 'marcus_t');
-                  if (marcusDm) setSelectedChat(marcusDm);
-                } else {
-                  const elenaDm = dms.find(d => d.id === 'elena');
-                  if (elenaDm) setSelectedChat(elenaDm);
-                }
-                setShowNewMessage(false);
-              }}
-              style={styles.startChatLargeButton}
-            >
-              <Send size={18} color="#FFFFFF" style={{ marginRight: 8, transform: [{ rotate: '-30deg' }] }} />
-              <Text style={styles.startChatLargeButtonText}>Start Chat</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      ) : showCreateGroup ? (
-        /* New Community Screen */
-        <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-          {/* Header */}
-          <View style={[
-            styles.messagesHeaderContainer, 
-            { 
-              backgroundColor: '#E3EEFF', 
-              borderBottomWidth: 1, 
-              borderBottomColor: '#CBD5E1', 
-              justifyContent: 'flex-start',
-              paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-              height: Platform.OS === 'android' ? 64 + StatusBar.currentHeight : 64
-            }
-          ]}>
-            <TouchableOpacity onPress={() => setShowCreateGroup(false)} style={styles.backButton}>
-              <ArrowLeft size={22} color="#134074" />
-            </TouchableOpacity>
-            <View style={{ flex: 1, alignItems: 'center', marginRight: 40 }}>
-              <Text style={[styles.messagesHeaderTitle, { marginLeft: 0 }]}>New Community</Text>
-            </View>
-          </View>
-
-          <ScrollView 
-            style={{ flex: 1 }} 
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 140 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Create New Group Title & Subtitle */}
-            <Text style={styles.newCommunityTitle}>Create New Group</Text>
-            <Text style={styles.newCommunitySubtitle}>
-              Establish a new professional subnetwork for the society members. All groups are monitored for professional compliance.
+            <Text style={styles.sectionHeaderTitle}>
+              {contactSearchQuery ? 'SEARCH RESULTS' : 'SUGGESTED CONTACTS'}
             </Text>
 
-            {/* Inner Card */}
-            <View style={styles.newCommunityCard}>
-              {/* Community Name */}
-              <Text style={styles.newCommunityLabel}>Community Name</Text>
-              <TextInput
-                style={styles.newCommunityInput}
-                placeholder="e.g. Senior Audit Specialists"
-                placeholderTextColor="#94A3B8"
-                value={groupName}
-                onChangeText={setGroupName}
-              />
-
-              {/* Description */}
-              <Text style={styles.newCommunityLabel}>Description</Text>
-              <TextInput
-                style={[styles.newCommunityInput, { height: 100, textAlignVertical: 'top' }]}
-                placeholder="Brief overview of the community's purpose and focus areas..."
-                placeholderTextColor="#94A3B8"
-                value={groupDescription}
-                onChangeText={setGroupDescription}
-                multiline
-                numberOfLines={4}
-              />
-
-              {/* Group Category */}
-              <Text style={styles.newCommunityLabel}>Group Category</Text>
-              <TouchableOpacity 
-                style={styles.categoryDropdownTrigger}
-                onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.categoryDropdownText}>{groupCategory}</Text>
-                <ChevronRight 
-                  size={20} 
-                  color="#134074" 
-                  style={{ transform: [{ rotate: showCategoryDropdown ? '90deg' : '0deg' }] }} 
-                />
-              </TouchableOpacity>
-
-              {/* Dropdown Options */}
-              {showCategoryDropdown && (
-                <View style={styles.categoryDropdownOptions}>
-                  {['Specialized', 'Regional Chapters', 'Public', 'Confidential'].map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={styles.categoryDropdownOptionItem}
-                      onPress={() => {
-                        setGroupCategory(cat);
-                        setShowCategoryDropdown(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.categoryDropdownOptionText,
-                        groupCategory === cat && { fontWeight: '800', color: '#134074' }
-                      ]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+            <View style={styles.suggestedListContainer}>
+              {filteredContacts.length === 0 ? (
+                <View style={{ padding: 16, alignItems: 'center' }}>
+                  <Text style={{ color: '#64748B', fontSize: 14 }}>No contacts found matching search.</Text>
                 </View>
+              ) : (
+                filteredContacts.map(contact => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    onPress={() => handleContactPress(contact)}
+                    style={styles.suggestedItemRow}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View style={styles.avatarWrapper}>
+                        {contact.avatar ? (
+                          <Image source={contact.avatar} style={styles.suggestedAvatar} />
+                        ) : (
+                          <View style={[styles.suggestedAvatar, { backgroundColor: contact.initialsBg || '#134074', justifyContent: 'center', alignItems: 'center' }]}>
+                            <Text style={{ color: contact.initialsColor || '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>
+                              {contact.initials || contact.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
+                      </View>
+                      <View style={{ marginLeft: 12 }}>
+                        <Text style={styles.suggestedName}>{contact.name}</Text>
+                        <Text style={styles.suggestedRole}>{contact.designation || 'TAS Member'}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))
               )}
-
-              {/* Privacy Settings */}
-              <Text style={styles.newCommunityLabel}>Privacy Settings</Text>
-              <View style={styles.privacySettingRow}>
-                <Text style={styles.privacySettingText}>Publicly Visible</Text>
-                <Switch
-                  value={isPublic}
-                  onValueChange={setIsPublic}
-                  trackColor={{ false: '#D1D5DB', true: '#70B62C' }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              {/* Member Limit */}
-              <View style={styles.memberLimitHeaderRow}>
-                <Text style={styles.newCommunityLabel}>Member Limit</Text>
-                <View style={styles.memberLimitBadge}>
-                  <Text style={styles.memberLimitBadgeText}>{memberLimit} Members</Text>
-                </View>
-              </View>
-
-              {/* Custom Slider Component */}
-              <View style={{ marginVertical: 12 }}>
-                <View 
-                  style={styles.sliderTrackBackground}
-                  onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
-                  {...panResponder.panHandlers}
-                >
-                  <View 
-                    style={[
-                      styles.sliderTrackFill, 
-                      { width: `${((memberLimit - 50) / 950) * 100}%` }
-                    ]} 
-                  />
-                  <View 
-                    style={[
-                      styles.sliderThumb, 
-                      { left: `${((memberLimit - 50) / 950) * 100}%` }
-                    ]} 
-                  />
-                </View>
-              </View>
-
-              {/* Cover Image */}
-              <Text style={styles.newCommunityLabel}>Cover Image</Text>
-              <TouchableOpacity 
-                style={styles.coverImageUploadZone}
-                onPress={handleCoverImagePick}
-                activeOpacity={0.8}
-              >
-                {coverImage ? (
-                  <View style={{ width: '100%', height: 120, borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
-                    <Image source={{ uri: coverImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    <TouchableOpacity 
-                      style={styles.removeCoverImageButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setCoverImage(null);
-                      }}
-                    >
-                      <X size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }}>
-                    <CameraPlusIcon color="#134074" size={32} />
-                    <Text style={styles.coverImageUploadTitle}>Click to upload brand cover image</Text>
-                    <Text style={styles.coverImageUploadSubtitle}>Recommended: 1200 x 400px (PNG, JPG)</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              <View style={styles.newCommunityDivider} />
-
-              {/* Establish Community Button */}
-              <TouchableOpacity 
-                style={styles.establishCommunityButton}
-                onPress={handleCreateGroup}
-                activeOpacity={0.8}
-              >
-                <View style={styles.checkmarkCircleWrapper}>
-                  <Svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                    <Path 
-                      d="M20 6L9 17L4 12" 
-                      stroke="#3D6A05" 
-                      strokeWidth="4" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                    />
-                  </Svg>
-                </View>
-                <Text style={styles.establishCommunityButtonText}>Establish Community</Text>
-              </TouchableOpacity>
             </View>
           </ScrollView>
-
-          {/* Bottom Tabs navigation bar */}
-          <View style={styles.footerContainer}>
-            <View style={styles.footerTabBar}>
-              <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Home')}>
-                <HomeIcon size={24} color="#134074" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Analytics')}>
-                <BarChart3 size={24} color="#134074" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Posts')}>
-                <Newspaper size={24} color="#134074" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Connect')}>
-                <UsersIcon size={24} color="#134074" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.footerTabItem} onPress={() => handleTabPress('Directory')}>
-                <DirectoryBookIcon color="#134074" />
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       ) : (
-        /* Chat List / Group List View */
+        /* Chat List View */
         <View style={{ flex: 1 }}>
           {/* Top Header */}
           <View style={styles.messagesHeaderContainer}>
@@ -1344,87 +1325,37 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                 <ArrowLeft size={22} color="#134074" />
               </TouchableOpacity>
             )}
-            <Text style={styles.messagesHeaderTitle}>Community</Text>
+            <Text style={styles.messagesHeaderTitle}>Messages</Text>
           </View>
 
-          {/* Switcher (Segmented Control) */}
-          <View style={styles.switcherWrapper}>
-            <View style={styles.switcherCapsule}>
-              <TouchableOpacity
-                onPress={() => setActiveSegment('dms')}
-                style={[styles.switcherTab, activeSegment === 'dms' && styles.switcherTabActive]}
-              >
-                <Text style={[styles.switcherTabText, activeSegment === 'dms' && styles.switcherTabTextActive]}>
-                  Direct Messages
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setActiveSegment('groups')}
-                style={[styles.switcherTab, activeSegment === 'groups' && styles.switcherTabActive]}
-              >
-                <Text style={[styles.switcherTabText, activeSegment === 'groups' && styles.switcherTabTextActive]}>
-                  Community Broadcast
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <ScrollView 
-            style={{ flex: 1 }} 
+          <ScrollView
+            ref={listScrollViewRef}
+            onScroll={handleScrollList}
+            scrollEventThrottle={16}
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 100 }}
           >
-            {/* Search Input */}
-            <View style={styles.listSearchInputBox}>
-              <Search size={18} color="#64748B" style={{ marginRight: 10 }} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder={activeSegment === 'dms' ? "Search contacts or society members..." : "Search Community"}
-                placeholderTextColor="#94A3B8"
-                style={{ flex: 1, color: '#1E293B', fontSize: 14, padding: 0 }}
-              />
-            </View>
-
-            {/* Category Filter Pills (Community groups tab only) */}
-            {activeSegment === 'groups' && (
-              <View>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false} 
-                  contentContainerStyle={styles.filterPillsScrollContainer}
-                >
-                  {['All Groups', 'Regional Chapters', 'Specialized', 'Public', 'Confidential'].map((pill) => {
-                    const isActive = groupFilter === pill;
-                    return (
-                      <TouchableOpacity
-                        key={pill}
-                        onPress={() => setGroupFilter(pill)}
-                        style={[
-                          styles.filterPillBtn,
-                          isActive ? styles.filterPillBtnActive : styles.filterPillBtnInactive
-                        ]}
-                      >
-                        <Text style={[
-                          styles.filterPillBtnText,
-                          isActive ? styles.filterPillBtnTextActive : styles.filterPillBtnTextInactive
-                        ]}>
-                          {pill}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-                <Text style={styles.listTitleText}>Community Groups</Text>
+            <View>
+              {/* Search Row with Requests */}
+              <View style={styles.searchRowWithRequests}>
+                <View style={styles.listSearchInputBoxContainer}>
+                  <Search size={18} color="#64748B" style={{ marginRight: 10 }} />
+                  <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Search..."
+                    placeholderTextColor="#94A3B8"
+                    style={{ flex: 1, color: '#1E293B', fontSize: 14, padding: 0 }}
+                  />
+                </View>
               </View>
-            )}
 
-            {activeSegment === 'dms' ? (
               <View style={{ paddingHorizontal: 16 }}>
                 {/* Recent Conversations Row */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <Text style={styles.listTitleText}>Recent Conversations</Text>
-                  
+
                   {/* UNREAD badge */}
                   {dms.filter(d => d.unread).length > 0 ? (
                     <View style={styles.unreadCountBadge}>
@@ -1439,15 +1370,23 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                 <View style={styles.conversationsCardFrame}>
                   {filteredDMs.map((dm, index) => (
                     <View key={dm.id}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => setSelectedChat(dm)}
                         style={styles.dmListItemRow}
                       >
                         <View style={styles.avatarWrapper}>
-                          <Image source={dm.avatar} style={styles.suggestedAvatar} />
-                          <View style={[styles.statusDot, { backgroundColor: (dm.id === 'julian' || dm.id === 'david') ? '#94A3B8' : '#22C55E' }]} />
+                          {dm.avatar ? (
+                            <Image source={dm.avatar} style={styles.squareRoundedAvatar} />
+                          ) : (
+                            <View style={[styles.squareRoundedAvatar, { backgroundColor: dm.initialsBg || '#E2FBE8' }]}>
+                              <Text style={[styles.avatarInitialsText, { color: dm.initialsColor || '#0D3866' }]}>
+                                {dm.initials}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={[styles.statusDot, { backgroundColor: dm.online ? '#22C55E' : '#94A3B8' }]} />
                         </View>
-                        
+
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Text style={[styles.dmItemName, dm.unread && { fontWeight: '800', color: '#1E293B' }]}>{dm.name}</Text>
@@ -1463,106 +1402,84 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                   ))}
                 </View>
               </View>
-            ) : (
-              <View style={{ paddingHorizontal: 16 }}>
-                {groups
-                  .filter(group => {
-                    // Filter groups by groupFilter pill and search query
-                    if (groupFilter !== 'All Groups' && group.category !== groupFilter) {
-                      return false;
-                    }
-                    if (searchQuery.trim()) {
-                      return group.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             group.description.toLowerCase().includes(searchQuery.toLowerCase());
-                    }
-                    return true;
-                  })
-                  .map((group) => (
-                    <View key={group.id} style={styles.groupCardItem}>
-                      <View style={styles.groupCardHeaderRow}>
-                        {/* Icon Wrapper */}
-                        <View style={[
-                          styles.groupIconWrapperSquare,
-                          (group.icon === 'gavel' || group.icon === 'shield') ? { backgroundColor: '#103B6B' } : { backgroundColor: '#E9F0FA' }
-                        ]}>
-                          {group.icon === 'gavel' ? (
-                            <GavelSvg color="#FFFFFF" size={20} />
-                          ) : group.icon === 'location' ? (
-                            <MapPin color="#134074" size={20} />
-                          ) : group.icon === 'chat' ? (
-                            <MessageCircle color="#134074" size={20} />
-                          ) : (
-                            <Shield color="#FFFFFF" size={20} fill="#FFFFFF" />
-                          )}
-                        </View>
-
-                        {/* Category Badge */}
-                        <View style={[
-                          styles.groupCategoryBadge,
-                          group.badge === 'SPECIALIZED' && { backgroundColor: '#E2FBE8', borderColor: '#BBF7D0' },
-                          group.badge === 'REGIONAL' && { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' },
-                          group.badge === 'PUBLIC' && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' },
-                          group.badge === 'CONFIDENTIAL' && { backgroundColor: '#FEF08A', borderColor: '#FDE047' }
-                        ]}>
-                          <Text style={[
-                            styles.groupCategoryBadgeText,
-                            group.badge === 'SPECIALIZED' && { color: '#15803D' },
-                            group.badge === 'REGIONAL' && { color: '#1D4ED8' },
-                            group.badge === 'PUBLIC' && { color: '#475569' },
-                            group.badge === 'CONFIDENTIAL' && { color: '#A16207' }
-                          ]}>
-                            {group.badge}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <Text style={styles.groupCardTitle}>{group.name}</Text>
-                      <Text style={styles.groupCardDescription}>{group.description}</Text>
-
-                      <View style={styles.groupCardSeparator} />
-
-                      <View style={styles.groupCardFooterRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <UsersIcon size={14} color="#64748B" style={{ marginRight: 6 }} />
-                          <Text style={styles.groupCardMembersText}>
-                            {group.member_count.toLocaleString()} Members
-                          </Text>
-                        </View>
-
-                        <TouchableOpacity 
-                          onPress={() => setSelectedGroup(group)}
-                          style={styles.groupViewButton}
-                        >
-                          <Text style={styles.groupViewButtonText}>View</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))
-                }
-              </View>
-            )}
+            </View>
           </ScrollView>
 
           {/* Floating Action Button (FAB) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
-              if (activeSegment === 'dms') {
-                setShowNewMessage(true);
-              } else {
-                setShowCreateGroup(true);
-              }
+              setShowNewMessage(true);
             }}
-            style={[
-              styles.floatingActionButton, 
-              activeSegment === 'groups' && { backgroundColor: '#70B62C' }
-            ]}
+            style={styles.floatingActionButton}
           >
             <Plus size={24} color="#FFFFFF" />
           </TouchableOpacity>
+
+          {/* Floating Scroll to Top */}
+          {showScrollTop && (
+            <TouchableOpacity onPress={scrollToTopList} style={styles.scrollTopButton} activeOpacity={0.85}>
+              <ArrowUp size={20} color="white" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
+      {/* Create Group Modal */}
+      <Modal
+        visible={showCreateGroup}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateGroup(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContentCard}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalHeaderTitle}>Create New Group</Text>
+              <TouchableOpacity onPress={() => setShowCreateGroup(false)}>
+                <X size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
 
+            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+              <Text style={styles.inputLabel}>Group Name</Text>
+              <TextInput
+                style={styles.modalTextInput}
+                placeholder="Enter group name"
+                placeholderTextColor="#94A3B8"
+                value={groupName}
+                onChangeText={setGroupName}
+              />
+
+              <Text style={styles.inputLabel}>Category</Text>
+              <TextInput
+                style={styles.modalTextInput}
+                placeholder="Specialized, Regional Chapters, Public, etc."
+                placeholderTextColor="#94A3B8"
+                value={groupCategory}
+                onChangeText={setGroupCategory}
+              />
+
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.modalTextInput, { height: 80, textAlignVertical: 'top' }]}
+                placeholder="Describe the group's purpose"
+                placeholderTextColor="#94A3B8"
+                value={groupDescription}
+                onChangeText={setGroupDescription}
+                multiline
+                numberOfLines={3}
+              />
+
+              <TouchableOpacity
+                onPress={handleCreateGroup}
+                style={styles.modalSubmitButton}
+              >
+                <Text style={styles.modalSubmitButtonText}>Create Group</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Calling Modals */}
       <Modal
@@ -1592,7 +1509,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
                 )}
               </View>
             </View>
-            
+
             <Text style={styles.incomingCallerName}>{selectedChat ? selectedChat.name : 'Sarah oenkins'}</Text>
             <Text style={styles.incomingCallerRole}>Senior Auditor • Fiscal Dept</Text>
           </View>
@@ -1631,7 +1548,7 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
 
           <View style={styles.quickMessageContainer}>
             <View style={styles.quickMessageDivider} />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
                 setActiveCall(null);
                 Alert.alert('Quick Message', 'Choose a message to reply:', [
@@ -1655,79 +1572,114 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
         transparent={false}
         onRequestClose={() => setActiveCall(null)}
       >
-        <SafeAreaView style={styles.incomingCallContainer}>
-          <View style={styles.gradientTopWash} />
-          <View style={styles.gradientBottomWash} />
+        <SafeAreaView style={styles.premiumCallWrapper}>
+          <View style={styles.premiumCallContent}>
+            {/* Top Security Banner */}
+            <View style={styles.topEncryptBadge}>
+              <Lock size={12} color="#F59E0B" style={{ marginRight: 6 }} />
+              <Text style={styles.topEncryptText}>END-TO-END ENCRYPTED</Text>
+            </View>
 
-          <View style={styles.ongoingBadgeContainer}>
-            <View style={styles.greenLiveDot} />
-            <Text style={styles.ongoingBadgeText}>ONGOING SECURE CALL</Text>
-          </View>
+            {/* Caller Name */}
+            <Text style={styles.callCallerName}>
+              {selectedChat ? selectedChat.name : 'Jameson Thorne'}
+            </Text>
 
-          <Text style={styles.ongoingTimerText}>{formatCallTime(callDuration)}</Text>
+            {/* Call Status / Duration */}
+            <Text style={styles.callStatusText}>
+              {callDuration === 0 ? 'Ringing...' : formatCallTime(callDuration)}
+            </Text>
 
-          <View style={styles.incomingAvatarSection}>
-            <View style={styles.doubleBorderOuter}>
-              <View style={styles.doubleBorderInner}>
-                {selectedChat && selectedChat.avatar ? (
-                  <Image source={selectedChat.avatar} style={styles.doubleBorderImage} />
+            {/* Circular Avatar Initials */}
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <View style={styles.centerInitialsCircle}>
+                <Text style={styles.centerInitialsText}>
+                  {(selectedChat ? selectedChat.name : 'Jameson Thorne')
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase()}
+                </Text>
+              </View>
+            </View>
+
+            {/* Translucent Controls Card Capsule */}
+            <View style={styles.bottomControlsCapsule}>
+              {/* Speaker Button */}
+              <TouchableOpacity
+                onPress={() => setIsSpeakerOn(!isSpeakerOn)}
+                style={[
+                  styles.callControlRoundBtn,
+                  isSpeakerOn ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                ]}
+              >
+                {isSpeakerOn ? (
+                  <Volume2 size={22} color="#0B0F19" />
                 ) : (
-                  <View style={[styles.doubleBorderImage, { backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center' }]}>
-                    <UsersIcon size={48} color="#94A3B8" />
-                  </View>
+                  <VolumeX size={22} color="#FFFFFF" />
                 )}
-              </View>
-            </View>
+              </TouchableOpacity>
 
-            <View style={styles.waveformRow}>
-              <View style={[styles.waveBar, { height: 16 }]} />
-              <View style={[styles.waveBar, { height: 28 }]} />
-              <View style={[styles.waveBar, { height: 22 }]} />
-              <View style={[styles.waveBar, { height: 12 }]} />
-              <View style={[styles.waveBar, { height: 20 }]} />
+              {/* Video Toggle */}
+              <TouchableOpacity
+                onPress={() => setIsVideoMuted(!isVideoMuted)}
+                style={[
+                  styles.callControlRoundBtn,
+                  !isVideoMuted ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                ]}
+              >
+                {!isVideoMuted ? (
+                  <Video size={22} color="#0B0F19" />
+                ) : (
+                  <VideoOff size={22} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+
+              {/* Microphone Button */}
+              <TouchableOpacity
+                onPress={() => setIsMuted(!isMuted)}
+                style={[
+                  styles.callControlRoundBtn,
+                  isMuted ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                ]}
+              >
+                {isMuted ? (
+                  <MicOff size={22} color="#0B0F19" />
+                ) : (
+                  <Mic size={22} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+
+              {/* Red Hangup Button */}
+              <TouchableOpacity
+                onPress={() => setActiveCall(null)}
+                style={styles.callHangUpBtn}
+              >
+                <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ transform: [{ rotate: '135deg' }] }}>
+                  <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#FFFFFF" />
+                </Svg>
+              </TouchableOpacity>
             </View>
-            
-            <Text style={styles.incomingCallerName}>{selectedChat ? selectedChat.name : 'Sarah oenkins'}</Text>
-            <Text style={styles.incomingCallerRole}>Senior Auditor • Fiscal Dept</Text>
           </View>
 
-          <View style={styles.ongoingControlsContainer}>
-            <View style={styles.ongoingControlsRow}>
-              <View style={styles.controlItem}>
-                <TouchableOpacity
-                  onPress={() => setIsMuted(!isMuted)}
-                  style={[styles.ongoingControlButton, isMuted && styles.ongoingControlButtonActive]}
-                >
-                  {isMuted ? <MicOff size={22} color="#FFFFFF" /> : <Mic size={22} color="#3A5666" />}
-                </TouchableOpacity>
-                <Text style={styles.ongoingControlText}>Mute</Text>
-              </View>
-
-              <View style={styles.controlItem}>
-                <TouchableOpacity style={styles.ongoingControlButton}>
-                  <KeypadIcon color="#3A5666" />
-                </TouchableOpacity>
-                <Text style={styles.ongoingControlText}>Keypad</Text>
-              </View>
-
-              <View style={styles.controlItem}>
-                <TouchableOpacity
-                  onPress={() => setIsSpeakerOn(!isSpeakerOn)}
-                  style={[styles.ongoingControlButton, isSpeakerOn && styles.ongoingControlButtonActive]}
-                >
-                  {isSpeakerOn ? <Volume2 size={22} color="#FFFFFF" /> : <VolumeX size={22} color="#3A5666" />}
-                </TouchableOpacity>
-                <Text style={styles.ongoingControlText}>Speaker</Text>
-              </View>
+          {/* Bottom Mock Tab Bar */}
+          <View style={styles.mockTabBarContainer}>
+            <TouchableOpacity style={styles.mockTabItem}>
+              <HomeIcon size={22} color="#134074" />
+            </TouchableOpacity>
+            <View style={styles.mockTabItemActive}>
+              <MessageCircle size={20} color="#70B62C" />
+              <Text style={styles.mockTabActiveText}>Chat</Text>
             </View>
-
-            <TouchableOpacity
-              onPress={() => setActiveCall(null)}
-              style={styles.hangUpButtonRoundedSquare}
-            >
-              <Svg width="30" height="30" viewBox="0 0 24 24" fill="none" style={{ transform: [{ rotate: '135deg' }] }}>
-                <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#FFFFFF" />
-              </Svg>
+            <TouchableOpacity style={styles.mockTabItem}>
+              <UsersIcon size={22} color="#134074" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.mockTabItem}>
+              <Calendar size={22} color="#134074" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.mockTabItem}>
+              <User size={22} color="#134074" />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -1739,69 +1691,246 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
         transparent={false}
         onRequestClose={() => setActiveCall(null)}
       >
-        <View style={styles.videoBackground}>
-          {selectedChat && selectedChat.avatar ? (
-            <Image source={selectedChat.avatar} style={styles.videoBgImage} resizeMode="cover" />
-          ) : (
-            <View style={[styles.videoBgImage, { backgroundColor: '#0F172A' }]} />
-          )}
-          <View style={styles.videoOverlayDark} />
-
-          <View style={styles.videoPipWindow}>
-            {isVideoMuted ? (
-              <View style={styles.videoPipMutedOverlay}>
-                <VideoOff size={24} color="#64748B" />
+        {callDuration === 0 ? (
+          <SafeAreaView style={styles.premiumCallWrapper}>
+            <View style={styles.premiumCallContent}>
+              {/* Top Security Banner */}
+              <View style={styles.topEncryptBadge}>
+                <Lock size={12} color="#F59E0B" style={{ marginRight: 6 }} />
+                <Text style={styles.topEncryptText}>END-TO-END ENCRYPTED</Text>
               </View>
-            ) : (
-              <>
-                <Image
-                  source={require('../../assets/logo_icon.png')}
-                  style={styles.videoPipImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.videoPipLabel}>
-                  <Text style={styles.videoPipLabelText}>You</Text>
+
+              {/* Caller Name */}
+              <Text style={styles.callCallerName}>
+                {selectedChat ? selectedChat.name : 'Jameson Thorne'}
+              </Text>
+
+              {/* Call Status / Duration */}
+              <Text style={styles.callStatusText}>Ringing...</Text>
+
+              {/* Circular Avatar Initials */}
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={styles.centerInitialsCircle}>
+                  <Text style={styles.centerInitialsText}>
+                    {(selectedChat ? selectedChat.name : 'Jameson Thorne')
+                      .split(' ')
+                      .map(n => n[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase()}
+                  </Text>
                 </View>
-              </>
-            )}
-          </View>
+              </View>
 
-          <View style={styles.videoBottomControlsCard}>
-            <View style={styles.videoControlsRowLeft}>
-              <TouchableOpacity
-                onPress={() => setIsMuted(!isMuted)}
-                style={[styles.videoOverlayButton, isMuted && styles.videoOverlayButtonActive]}
-              >
-                {isMuted ? <MicOff size={22} color="#FFFFFF" style={{ opacity: 0.9 }} /> : <Mic size={22} color="#FFFFFF" style={{ opacity: 0.9 }} />}
-              </TouchableOpacity>
+              {/* Translucent Controls Card Capsule */}
+              <View style={styles.bottomControlsCapsule}>
+                {/* Speaker Button */}
+                <TouchableOpacity
+                  onPress={() => setIsSpeakerOn(!isSpeakerOn)}
+                  style={[
+                    styles.callControlRoundBtn,
+                    isSpeakerOn ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                  ]}
+                >
+                  {isSpeakerOn ? (
+                    <Volume2 size={22} color="#0B0F19" />
+                  ) : (
+                    <VolumeX size={22} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => setIsVideoMuted(!isVideoMuted)}
-                style={[styles.videoOverlayButton, isVideoMuted && styles.videoOverlayButtonActive]}
-              >
-                {isVideoMuted ? <VideoOff size={22} color="#FFFFFF" style={{ opacity: 0.9 }} /> : <Video size={22} color="#FFFFFF" style={{ opacity: 0.9 }} />}
-              </TouchableOpacity>
+                {/* Video Toggle */}
+                <TouchableOpacity
+                  onPress={() => setIsVideoMuted(!isVideoMuted)}
+                  style={[
+                    styles.callControlRoundBtn,
+                    !isVideoMuted ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                  ]}
+                >
+                  {!isVideoMuted ? (
+                    <Video size={22} color="#0B0F19" />
+                  ) : (
+                    <VideoOff size={22} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => setIsFrontCamera(!isFrontCamera)}
-                style={styles.videoOverlayButton}
-              >
-                <RotateCw size={22} color="#FFFFFF" style={{ opacity: 0.9 }} />
-              </TouchableOpacity>
+                {/* Microphone Button */}
+                <TouchableOpacity
+                  onPress={() => setIsMuted(!isMuted)}
+                  style={[
+                    styles.callControlRoundBtn,
+                    isMuted ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                  ]}
+                >
+                  {isMuted ? (
+                    <MicOff size={22} color="#0B0F19" />
+                  ) : (
+                    <Mic size={22} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+
+                {/* Red Hangup Button */}
+                <TouchableOpacity
+                  onPress={() => setActiveCall(null)}
+                  style={styles.callHangUpBtn}
+                >
+                  <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ transform: [{ rotate: '135deg' }] }}>
+                    <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#FFFFFF" />
+                  </Svg>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <View style={styles.videoControlsDivider} />
+            {/* Bottom Mock Tab Bar */}
+            <View style={styles.mockTabBarContainer}>
+              <TouchableOpacity style={styles.mockTabItem}>
+                <HomeIcon size={22} color="#134074" />
+              </TouchableOpacity>
+              <View style={styles.mockTabItemActive}>
+                <MessageCircle size={20} color="#70B62C" />
+                <Text style={styles.mockTabActiveText}>Chat</Text>
+              </View>
+              <TouchableOpacity style={styles.mockTabItem}>
+                <UsersIcon size={22} color="#134074" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mockTabItem}>
+                <Calendar size={22} color="#134074" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mockTabItem}>
+                <User size={22} color="#134074" />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        ) : (
+          <View style={styles.videoBackground}>
+            {selectedChat && selectedChat.avatar ? (
+              <Image source={selectedChat.avatar} style={styles.videoBgImage} resizeMode="cover" />
+            ) : (
+              <View style={[styles.videoBgImage, { backgroundColor: '#0F172A' }]} />
+            )}
+            <View style={styles.videoOverlayDark} />
 
-            <TouchableOpacity
-              onPress={() => setActiveCall(null)}
-              style={styles.videoHangupButton}
-            >
-              <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ transform: [{ rotate: '135deg' }] }}>
-                <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#FFFFFF" />
-              </Svg>
-            </TouchableOpacity>
+            <View style={styles.videoPipWindow}>
+              {isVideoMuted ? (
+                <View style={styles.videoPipMutedOverlay}>
+                  <VideoOff size={24} color="#64748B" />
+                </View>
+              ) : (
+                <>
+                  <Image
+                    source={require('../../assets/logo_icon.png')}
+                    style={styles.videoPipImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.videoPipLabel}>
+                    <Text style={styles.videoPipLabelText}>You</Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            <SafeAreaView style={[StyleSheet.absoluteFillObject, { justifyContent: 'space-between', paddingBottom: 0 }]}>
+              <View style={[styles.premiumCallContent, { flex: 1, paddingBottom: 0 }]}>
+                {/* Top Security Banner */}
+                <View style={[styles.topEncryptBadge, { marginTop: Platform.OS === 'android' ? 40 : 20 }]}>
+                  <Lock size={12} color="#F59E0B" style={{ marginRight: 6 }} />
+                  <Text style={styles.topEncryptText}>END-TO-END ENCRYPTED</Text>
+                </View>
+
+                {/* Caller Name */}
+                <Text style={styles.callCallerName}>
+                  {selectedChat ? selectedChat.name : 'Jameson Thorne'}
+                </Text>
+
+                {/* Call Status / Duration */}
+                <Text style={styles.callStatusText}>
+                  {formatCallTime(callDuration)}
+                </Text>
+
+                {/* Spacer */}
+                <View style={{ flex: 1 }} />
+
+                {/* Translucent Controls Card Capsule */}
+                <View style={[styles.bottomControlsCapsule, { marginBottom: 20 }]}>
+                  {/* Speaker Button */}
+                  <TouchableOpacity
+                    onPress={() => setIsSpeakerOn(!isSpeakerOn)}
+                    style={[
+                      styles.callControlRoundBtn,
+                      isSpeakerOn ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                    ]}
+                  >
+                    {isSpeakerOn ? (
+                      <Volume2 size={22} color="#0B0F19" />
+                    ) : (
+                      <VolumeX size={22} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Video Toggle */}
+                  <TouchableOpacity
+                    onPress={() => setIsVideoMuted(!isVideoMuted)}
+                    style={[
+                      styles.callControlRoundBtn,
+                      !isVideoMuted ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                    ]}
+                  >
+                    {!isVideoMuted ? (
+                      <Video size={22} color="#0B0F19" />
+                    ) : (
+                      <VideoOff size={22} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Microphone Button */}
+                  <TouchableOpacity
+                    onPress={() => setIsMuted(!isMuted)}
+                    style={[
+                      styles.callControlRoundBtn,
+                      isMuted ? styles.callControlRoundBtnActive : styles.callControlRoundBtnInactive
+                    ]}
+                  >
+                    {isMuted ? (
+                      <MicOff size={22} color="#0B0F19" />
+                    ) : (
+                      <Mic size={22} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Red Hangup Button */}
+                  <TouchableOpacity
+                    onPress={() => setActiveCall(null)}
+                    style={styles.callHangUpBtn}
+                  >
+                    <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ transform: [{ rotate: '135deg' }] }}>
+                      <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#FFFFFF" />
+                    </Svg>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Bottom Mock Tab Bar */}
+              <View style={styles.mockTabBarContainer}>
+                <TouchableOpacity style={styles.mockTabItem}>
+                  <HomeIcon size={22} color="#134074" />
+                </TouchableOpacity>
+                <View style={styles.mockTabItemActive}>
+                  <MessageCircle size={20} color="#70B62C" />
+                  <Text style={styles.mockTabActiveText}>Chat</Text>
+                </View>
+                <TouchableOpacity style={styles.mockTabItem}>
+                  <UsersIcon size={22} color="#134074" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mockTabItem}>
+                  <Calendar size={22} color="#134074" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mockTabItem}>
+                  <User size={22} color="#134074" />
+                </TouchableOpacity>
+              </View>
+            </SafeAreaView>
           </View>
-        </View>
+        )}
       </Modal>
     </SafeAreaView>
   );
@@ -1810,12 +1939,11 @@ export const MessagesScreen = ({ onBack, onTabPress, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F7FB',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
+    backgroundColor: '#F4F7FC'
   },
   chatHeader: {
     height: 64,
-    backgroundColor: '#E9F0FA',
+    backgroundColor: '#EBF3FC',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',
     flexDirection: 'row',
@@ -1870,6 +1998,10 @@ const styles = StyleSheet.create({
     color: '#64748B',
     letterSpacing: 0.5,
     marginTop: 1,
+  },
+  callHeaderButton: {
+    padding: 8,
+    marginRight: 10,
   },
   moreButton: {
     padding: 8,
@@ -2455,7 +2587,7 @@ const styles = StyleSheet.create({
   },
   messagesHeaderContainer: {
     height: 64,
-    backgroundColor: '#DCE8FC',
+    backgroundColor: '#EBF3FC',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -3151,204 +3283,576 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-
-  /* New Community Styles */
-  newCommunityTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0E3866',
-    marginBottom: 8,
+  searchRowWithRequests: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    gap: 12,
   },
-  newCommunitySubtitle: {
-    fontSize: 13.5,
-    color: '#64748B',
-    lineHeight: 18,
+  listSearchInputBoxContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  requestsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  requestsButtonText: {
+    color: '#0369A1',
+    fontSize: 13,
+    fontWeight: '800',
+    marginLeft: 6,
+    marginRight: 6,
+  },
+  requestsBadge: {
+    backgroundColor: '#EF4444',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  requestsBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  squareRoundedAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitialsText: {
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  communitySearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  communitySearchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  joinCommunityBtn: {
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  joinCommunityBtnText: {
+    color: '#0369A1',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  networkCategoryContainer: {
+    marginHorizontal: 16,
     marginBottom: 20,
   },
-  newCommunityCard: {
+  networkHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  networkAvatarSquare: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  networkHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  networkHeaderMembers: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  channelsCardFrame: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  newCommunityLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0E3866',
-    marginBottom: 8,
-  },
-  newCommunityInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#1E293B',
-    marginBottom: 16,
-  },
-  categoryDropdownTrigger: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  categoryDropdownText: {
-    fontSize: 14,
-    color: '#1E293B',
-  },
-  categoryDropdownOptions: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    marginTop: -12,
-    marginBottom: 16,
     overflow: 'hidden',
   },
-  categoryDropdownOptionItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  categoryDropdownOptionText: {
-    fontSize: 13.5,
-    color: '#475569',
-  },
-  privacySettingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  privacySettingText: {
-    fontSize: 14,
-    color: '#475569',
-  },
-  memberLimitHeaderRow: {
+  channelListItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  memberLimitBadge: {
-    backgroundColor: '#E3EEFF',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  memberLimitBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#134074',
-  },
-  sliderTrackBackground: {
-    height: 6,
-    backgroundColor: '#E3EEFF',
-    borderRadius: 3,
-    position: 'relative',
-    marginBottom: 20,
-  },
-  sliderTrackFill: {
-    height: 6,
-    backgroundColor: '#3B82F6',
-    borderRadius: 3,
-  },
-  sliderThumb: {
-    position: 'absolute',
-    top: -5,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#3B82F6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-    marginLeft: -8,
-  },
-  coverImageUploadZone: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
     padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
   },
-  coverImageUploadTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748B',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  coverImageUploadSubtitle: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  removeCoverImageButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+  channelIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  newCommunityDivider: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 20,
-  },
-  establishCommunityButton: {
-    backgroundColor: '#3D6A05',
-    borderRadius: 8,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  establishCommunityButtonText: {
-    color: '#FFFFFF',
+  channelItemName: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  checkmarkCircleWrapper: {
+  channelItemTime: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  channelItemText: {
+    fontSize: 13,
+    color: '#64748B',
+    flex: 1,
+    marginRight: 10,
+  },
+  channelUnreadCountBadge: {
+    backgroundColor: '#22C55E',
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  channelUnreadCountText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  channelItemSeparator: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginHorizontal: 16,
+  },
+
+  /* WhatsApp-style Community Details View Styles */
+  whatsappHeader: {
+    height: 60,
+    backgroundColor: '#EBF3FC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#CFDFE9',
+  },
+  whatsappBackBtn: {
+    padding: 8,
     marginRight: 8,
+  },
+  whatsappHeaderTitle: {
+    color: '#134074',
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+  },
+  whatsappOptionsBtn: {
+    padding: 8,
+  },
+  whatsappAnnouncementCard: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  whatsappAnnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  whatsappAnnIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  whatsappAnnTitle: {
+    color: '#1E293B',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  whatsappAnnDate: {
+    color: '#64748B',
+    fontSize: 12,
+  },
+  whatsappAnnSubtitle: {
+    color: '#64748B',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  whatsappSectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  whatsappSectionHeaderText: {
+    color: '#134074',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  whatsappAddGroupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  whatsappAddGroupIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  whatsappAddGroupText: {
+    color: '#134074',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 14,
+  },
+  whatsappChannelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  whatsappChannelIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  whatsappChannelTitle: {
+    color: '#1E293B',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  whatsappChannelTime: {
+    color: '#64748B',
+    fontSize: 12,
+  },
+  whatsappChannelSubtitle: {
+    color: '#64748B',
+    fontSize: 14,
+    marginTop: 4,
+  },
+
+  /* Reports Moderation Styles */
+  reportCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reportBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  reportBadgeText: {
+    color: '#EF4444',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  reportDate: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  reportSubTitle: {
+    fontSize: 14,
+    color: '#475569',
+    marginBottom: 6,
+  },
+  reportChannelText: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  reportedContentBox: {
+    backgroundColor: '#F8FAFC',
+    borderLeftWidth: 3,
+    borderLeftColor: '#EF4444',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 14,
+  },
+  reportedContentText: {
+    fontSize: 13,
+    color: '#334155',
+    fontStyle: 'italic',
+  },
+  viewReportBtn: {
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewReportBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  moderationBanner: {
+    backgroundColor: '#FFF1F2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4E6',
+    padding: 14,
+  },
+  moderationBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  moderationBannerTitle: {
+    color: '#9F1239',
+    fontSize: 14,
+    fontWeight: '800',
+    flex: 1,
+  },
+  moderationCloseBtn: {
+    padding: 2,
+  },
+  moderationReportedText: {
+    fontSize: 13,
+    color: '#4C0519',
+    marginBottom: 4,
+  },
+  moderationContentText: {
+    fontSize: 12.5,
+    color: '#881337',
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  moderationActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  moderationActionBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moderationActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  /* Premium Calling Styles */
+  premiumCallWrapper: {
+    flex: 1,
+    backgroundColor: '#0A0E17', // Deep dark premium blue/black background
+  },
+  premiumCallContent: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 40 : 60,
+    justifyContent: 'space-between',
+    paddingBottom: 40,
+  },
+  topEncryptBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    marginTop: 20,
+  },
+  topEncryptText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  callCallerName: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  callStatusText: {
+    color: '#70B62C', // Ringing green color
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  centerInitialsCircle: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#FEF9E7', // Cream/off-white background
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  centerInitialsText: {
+    color: '#0A0E17', // Dark navy/black initials text
+    fontSize: 44,
+    fontWeight: '800',
+  },
+  bottomControlsCapsule: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: '#111A24', // Dark grey/blue container background
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 40, // offset above mock bottom navigation
+  },
+  callControlRoundBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  callControlRoundBtnInactive: {
+    backgroundColor: '#202B37', // Solid premium dark grey/blue
+  },
+  callControlRoundBtnActive: {
+    backgroundColor: '#FFFFFF', // White background when active
+  },
+  callHangUpBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#EF4444', // Red hangup
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mockTabBarContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 28 : 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  mockTabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  mockTabItemActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#f0fdf4', // Soft green background active
+  },
+  mockTabActiveText: {
+    color: '#70B62C',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  scrollTopButton: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 100 : 86,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0D3866',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 3
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 99
   },
 });

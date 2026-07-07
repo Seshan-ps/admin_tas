@@ -5,24 +5,27 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Alert,
   StyleSheet,
   Platform,
   StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Camera, Info, Lock } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { dbStore } from '../config/dbStore';
 
 export const EditDetailsScreen = ({ route, navigation }) => {
+  const isCommunity = route?.params?.type === 'community';
+
   const memberData = route?.params?.memberData || {
     name: 'Sarah Jenkins',
     role: 'Senior Auditor',
-    branch: 'London Branch',
-    tierLabel: 'Platinum Member',
+    branch: 'Regional Branch',
+    tierLabel: 'Premium Member',
+    tier: 'Premium',
     memberId: 'TAS-2024-8842',
     joinDate: 'Joined: Jan 2021',
     email: 's.jenkins@pkf-international.com',
@@ -32,12 +35,27 @@ export const EditDetailsScreen = ({ route, navigation }) => {
     avatar: require('../../assets/elena_profile.png')
   };
 
+  const communityData = route?.params?.communityData || {
+    id: '',
+    name: 'TAX COMPLIANCE & AUDIT NETWORK',
+    description: 'Tax and auditing collaboration network for registered professionals.',
+    category: 'TAX COMPLIANCE & AUDIT NETWORK',
+    membersCount: '4 Members'
+  };
+
+  // State hooks for Member
   const [fullName, setFullName] = useState(memberData.name);
   const [email, setEmail] = useState(memberData.email);
   const [memberId, setMemberId] = useState(memberData.fullIdCode);
   const [firm, setFirm] = useState(memberData.firm);
   const [avatar, setAvatar] = useState(memberData.avatar);
   const [roleType, setRoleType] = useState('Member');
+
+  // State hooks for Community
+  const [commName, setCommName] = useState(communityData.name);
+  const [commDesc, setCommDesc] = useState(communityData.description);
+  const [commCategory, setCommCategory] = useState(communityData.category);
+  const [commMembers, setCommMembers] = useState(communityData.membersCount);
 
   const handlePickPhoto = async () => {
     try {
@@ -52,7 +70,6 @@ export const EditDetailsScreen = ({ route, navigation }) => {
         quality: 1
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Since we are setting either a require source or a uri source
         setAvatar({ uri: result.assets[0].uri });
       }
     } catch (err) {
@@ -61,6 +78,36 @@ export const EditDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleSave = () => {
+    if (isCommunity) {
+      if (!commName.trim() || !commDesc.trim() || !commCategory.trim()) {
+        Alert.alert('Incomplete Fields', 'Please fill in all community information fields.');
+        return;
+      }
+
+      // Update in dbStore
+      dbStore.groups = dbStore.groups.map(g => {
+        if (g.category === communityData.category) {
+          return {
+            ...g,
+            category: commCategory.trim(),
+            name: g.category === g.name ? commName.trim() : g.name
+          };
+        }
+        return g;
+      });
+      dbStore.notify();
+
+      Alert.alert('Changes Saved', 'Community details updated successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.goBack();
+          }
+        }
+      ]);
+      return;
+    }
+
     if (!fullName.trim() || !email.trim() || !memberId.trim() || !firm.trim()) {
       Alert.alert('Incomplete Fields', 'Please fill in all general information fields.');
       return;
@@ -80,7 +127,7 @@ export const EditDetailsScreen = ({ route, navigation }) => {
       name: fullName.trim(),
       email: email.trim(),
       fullIdCode: memberId.trim(),
-      memberId: memberId.trim(), // Keep short/long ID codes in sync
+      memberId: memberId.trim(),
       firm: firm.trim(),
       avatar: avatar,
       role: roleType === 'Admin' ? 'Admin' : 'Senior Auditor'
@@ -97,13 +144,14 @@ export const EditDetailsScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#134074" />
+          <ArrowLeft size={22} color="#0D3866" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Details</Text>
+        <Text style={styles.headerTitle}>{isCommunity ? 'Edit Community' : 'Edit Details'}</Text>
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView 
@@ -111,103 +159,152 @@ export const EditDetailsScreen = ({ route, navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* CARD 1: PHOTO SECTION */}
-        <View style={styles.card}>
-          <View style={styles.avatarWrapperContainer}>
-            <View style={styles.avatarWrapper}>
-              <Image source={typeof avatar === 'string' ? { uri: avatar } : avatar} style={styles.avatar} />
-              <TouchableOpacity style={styles.cameraIconButton} onPress={handlePickPhoto} activeOpacity={0.8}>
-                <Camera size={14} color="#FFFFFF" />
+        {isCommunity ? (
+          /* COMMUNITY EDIT FIELDS */
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Community Information</Text>
+            <View style={styles.titleDivider} />
+
+            <Text style={styles.inputLabel}>Community Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={commName}
+              onChangeText={setCommName}
+              placeholder="Enter community name"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput
+              style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+              value={commDesc}
+              onChangeText={setCommDesc}
+              placeholder="Enter description"
+              placeholderTextColor="#94A3B8"
+              multiline
+              numberOfLines={3}
+            />
+
+            <Text style={styles.inputLabel}>Category</Text>
+            <TextInput
+              style={styles.textInput}
+              value={commCategory}
+              onChangeText={setCommCategory}
+              placeholder="Enter category"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={styles.inputLabel}>Members Count</Text>
+            <TextInput
+              style={styles.textInput}
+              value={commMembers}
+              onChangeText={setCommMembers}
+              placeholder="e.g. 4 Members"
+              placeholderTextColor="#94A3B8"
+            />
+          </View>
+        ) : (
+          /* MEMBER EDIT FIELDS */
+          <>
+            {/* CARD 1: PHOTO SECTION */}
+            <View style={styles.card}>
+              <View style={styles.avatarWrapperContainer}>
+                <View style={styles.avatarWrapper}>
+                  <Image source={typeof avatar === 'string' ? { uri: avatar } : avatar} style={styles.avatar} />
+                  <TouchableOpacity style={styles.cameraIconButton} onPress={handlePickPhoto} activeOpacity={0.8}>
+                    <Camera size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={styles.memberName}>{fullName}</Text>
+              <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.7}>
+                <Text style={styles.changePhotoText}>Change Photo</Text>
               </TouchableOpacity>
             </View>
-          </View>
-          <Text style={styles.memberName}>{fullName}</Text>
-          <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.7}>
-            <Text style={styles.changePhotoText}>Change Photo</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* CARD 2: GENERAL INFORMATION */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>General Information</Text>
-          <View style={styles.titleDivider} />
+            {/* CARD 2: GENERAL INFORMATION */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>General Information</Text>
+              <View style={styles.titleDivider} />
 
-          <Text style={styles.inputLabel}>Full Name</Text>
-          <TextInput
-            style={styles.textInput}
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Enter full name"
-            placeholderTextColor="#94A3B8"
-          />
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter full name"
+                placeholderTextColor="#94A3B8"
+              />
 
-          <Text style={styles.inputLabel}>Email Address</Text>
-          <TextInput
-            style={styles.textInput}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter email address"
-            placeholderTextColor="#94A3B8"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                style={styles.textInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter email address"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
 
-          <Text style={styles.inputLabel}>Member ID</Text>
-          <TextInput
-            style={styles.textInput}
-            value={memberId}
-            onChangeText={setMemberId}
-            placeholder="Enter member ID"
-            placeholderTextColor="#94A3B8"
-          />
+              <Text style={styles.inputLabel}>Member ID</Text>
+              <TextInput
+                style={styles.textInput}
+                value={memberId}
+                onChangeText={setMemberId}
+                placeholder="Enter member ID"
+                placeholderTextColor="#94A3B8"
+              />
 
-          <Text style={styles.inputLabel}>Primary Firm</Text>
-          <TextInput
-            style={styles.textInput}
-            value={firm}
-            onChangeText={setFirm}
-            placeholder="Enter primary firm"
-            placeholderTextColor="#94A3B8"
-          />
-        </View>
+              <Text style={styles.inputLabel}>Primary Firm</Text>
+              <TextInput
+                style={styles.textInput}
+                value={firm}
+                onChangeText={setFirm}
+                placeholder="Enter primary firm"
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
 
-        {/* CARD 3: ROLE & ACCESSIBILITY */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Role & Accessibility</Text>
-          <View style={styles.titleDivider} />
+            {/* CARD 3: ROLE & ACCESSIBILITY */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Role & Accessibility</Text>
+              <View style={styles.titleDivider} />
 
-          {/* Segmented control */}
-          <View style={styles.segmentedControl}>
-            <TouchableOpacity 
-              style={[styles.segmentTab, roleType === 'Member' && styles.segmentTabActive]}
-              onPress={() => setRoleType('Member')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.segmentTabText, roleType === 'Member' && styles.segmentTabTextActive]}>
-                Member
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.segmentTab, roleType === 'Admin' && styles.segmentTabActive]}
-              onPress={() => setRoleType('Admin')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.segmentTabText, roleType === 'Admin' && styles.segmentTabTextActive]}>
-                Admin
-              </Text>
-            </TouchableOpacity>
-          </View>
+              {/* Segmented control */}
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity 
+                  style={[styles.segmentTab, roleType === 'Member' && styles.segmentTabActive]}
+                  onPress={() => setRoleType('Member')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.segmentTabText, roleType === 'Member' && styles.segmentTabTextActive]}>
+                    Member
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.segmentTab, roleType === 'Admin' && styles.segmentTabActive]}
+                  onPress={() => setRoleType('Admin')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.segmentTabText, roleType === 'Admin' && styles.segmentTabTextActive]}>
+                    Admin
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <Info size={18} color="#0F2C59" style={{ marginRight: 10, marginTop: 2 }} />
-            <Text style={styles.infoBoxText}>
-              {roleType === 'Member' 
-                ? "As a Member, the user has read-only access to society directories and can participate in community forums and member events."
-                : "As an Admin, the user has read-write access to society directories, can edit members, and has administrative access to settings and reporting tools."}
-            </Text>
-          </View>
-        </View>
+              {/* Info Box */}
+              <View style={styles.infoBox}>
+                <Info size={18} color="#0F2C59" style={{ marginRight: 10, marginTop: 2 }} />
+                <Text style={styles.infoBoxText}>
+                  {roleType === 'Member' 
+                    ? "As a Member, the user has read-only access to society directories and can participate in community forums and member events."
+                    : "As an Admin, the user has read-write access to society directories, can edit members, and has administrative access to settings and reporting tools."}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
 
         {/* Save / Cancel Buttons */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.8}>
@@ -228,6 +325,7 @@ export const EditDetailsScreen = ({ route, navigation }) => {
                 strokeWidth="4" 
                 strokeLinecap="round" 
                 strokeLinejoin="round" 
+                fill="none"
               />
             </Svg>
             <Text style={styles.encryptionBadgeText}>SECURE DATA ENCRYPTION ENABLED</Text>
@@ -242,31 +340,26 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 0,
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: '#F4F7FC'
   },
   header: {
-    height: Platform.OS === 'android' ? 56 + StatusBar.currentHeight : 56,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    backgroundColor: '#E3EEFF',
+    height: 56,
+    backgroundColor: '#EBF3FC',
     borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
+    borderBottomColor: '#DBEAFE',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    position: 'relative'
+    justifyContent: 'space-between',
+    paddingHorizontal: 16
   },
   backButton: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 10,
-    padding: 8
+    padding: 8,
+    marginLeft: -8
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#0F2C59',
-    textAlign: 'center'
+    color: '#0D3866'
   },
   scrollContent: {
     padding: 16,

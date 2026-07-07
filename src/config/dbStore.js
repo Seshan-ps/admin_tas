@@ -2,24 +2,172 @@ import { supabase } from './supabase';
 // Initial Mock Data
 const initialQueue = [{
   id: 'conn_1',
-  user_name: 'Jonathan Sterling, CPA',
-  designation: 'Senior Tax Consultant • Midwest Region',
+  user_name: 'sanjay_r',
+  full_name: 'Sanjay Ramasamy, CPA',
+  phone: '+91 98401 23456',
+  dob: '12/04/1988',
+  gender: 'Male',
+  email: 'sanjay.ramasamy@chennaifinance.in',
+  membership_plan: 'Premium',
+  designation: 'Senior Tax Consultant • Chennai Region',
   id_badge: 'ID: 8829-X',
   avatar: require('../../assets/admin_profile.png'),
   viewed: false
 }, {
   id: 'conn_2',
-  user_name: 'Ann Rose Mari, CPA',
-  designation: 'Audit ,Global',
+  user_name: 'priya_r',
+  full_name: 'Priya Raman, CPA',
+  phone: '+91 94441 23456',
+  dob: '24/08/1993',
+  gender: 'Female',
+  email: 'priya.raman@bangaloreaudits.co.in',
+  membership_plan: 'Lifetime',
+  designation: 'Audit Director • Bengaluru Office',
   id_badge: 'ID: 8830-X',
   avatar: require('../../assets/elena_profile.png'),
   viewed: false
 }, {
   id: 'conn_3',
-  user_name: 'Dom Nick Toretto, CPA',
-  designation: 'Tax Consultant • AVM',
+  user_name: 'karthik_s',
+  full_name: 'Karthik Subramanian, CPA',
+  phone: '+91 97901 23456',
+  dob: '18/09/1985',
+  gender: 'Male',
+  email: 'karthik.sub@maduraitax.org',
+  membership_plan: 'Professional',
+  designation: 'Forensic Accountant • Madurai Associates',
   id_badge: 'ID: 8838-X',
   avatar: require('../../assets/admin_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_4',
+  user_name: 'aditya_s',
+  full_name: 'Aditya Sundaram, CPA',
+  phone: '+91 98405 12345',
+  dob: '15/05/1992',
+  gender: 'Male',
+  email: 'aditya.sundaram@chennaifinance.in',
+  membership_plan: 'Professional',
+  designation: 'Audit Manager • Chennai Hub',
+  id_badge: 'ID: 9012-X',
+  avatar: require('../../assets/admin_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_5',
+  user_name: 'kavitha_k',
+  full_name: 'Kavitha Krishnan',
+  phone: '+91 94440 67890',
+  dob: '22/10/1994',
+  gender: 'Female',
+  email: 'kavitha.krishnan@bangaloreaudits.co.in',
+  membership_plan: 'Premium',
+  designation: 'Tax Consultant • Bengaluru Branch',
+  id_badge: 'ID: 9013-X',
+  avatar: require('../../assets/elena_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_6',
+  user_name: 'hari_s',
+  full_name: 'Hariharan Srinivasan',
+  phone: '+91 97909 54321',
+  dob: '08/12/1989',
+  gender: 'Male',
+  email: 'hari.srinivasan@hyderabadtax.org',
+  membership_plan: 'Lifetime',
+  designation: 'Partner • Hyderabad Head Office',
+  id_badge: 'ID: 9014-X',
+  avatar: require('../../assets/admin_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_7',
+  user_name: 'meena_v',
+  full_name: 'Meenakshi Venkat',
+  phone: '+91 98840 98765',
+  dob: '03/04/1996',
+  gender: 'Female',
+  email: 'meena.venkat@coimbatorefin.com',
+  membership_plan: 'Basic',
+  designation: 'Junior Auditor • Coimbatore Branch',
+  id_badge: 'ID: 9015-X',
+  avatar: require('../../assets/elena_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_8',
+  user_name: 'balaji_n',
+  full_name: 'Balaji Natarajan',
+  phone: '+91 98412 34567',
+  dob: '05/11/1990',
+  gender: 'Male',
+  email: 'balaji.natarajan@chennaifinance.in',
+  membership_plan: 'Basic',
+  designation: 'Junior Accountant • Chennai Hub',
+  id_badge: 'ID: 9016-X',
+  avatar: require('../../assets/admin_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_9',
+  user_name: 'swetha_m',
+  full_name: 'Swetha Murali',
+  phone: '+91 94451 98765',
+  dob: '14/02/1995',
+  gender: 'Female',
+  email: 'swetha.murali@bangaloreaudits.co.in',
+  membership_plan: 'Professional',
+  designation: 'Tax Auditor • Bengaluru Office',
+  id_badge: 'ID: 9017-X',
+  avatar: require('../../assets/elena_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_10',
+  user_name: 'ramesh_t',
+  full_name: 'Ramesh Tanguturi',
+  phone: '+91 97910 87654',
+  dob: '29/07/1987',
+  gender: 'Male',
+  email: 'ramesh.t@hyderabadtax.org',
+  membership_plan: 'Premium',
+  designation: 'Senior Audit Manager • Hyderabad Branch',
+  id_badge: 'ID: 9018-X',
+  avatar: require('../../assets/admin_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_11',
+  user_name: 'ananya_s',
+  full_name: 'Ananya Srinivasan',
+  phone: '+91 98841 23450',
+  dob: '10/10/1991',
+  gender: 'Female',
+  email: 'ananya.srinivasan@coimbatorefin.com',
+  membership_plan: 'Lifetime',
+  designation: 'Audit Director • Coimbatore Hub',
+  id_badge: 'ID: 9019-X',
+  avatar: require('../../assets/elena_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_12',
+  user_name: 'senthil_k',
+  full_name: 'Senthil Kumar, CPA',
+  phone: '+91 98402 87654',
+  dob: '03/03/1983',
+  gender: 'Male',
+  email: 'senthil.kumar@maduraitax.org',
+  membership_plan: 'Premium',
+  designation: 'Chief Tax Consultant • Madurai Region',
+  id_badge: 'ID: 9020-X',
+  avatar: require('../../assets/admin_profile.png'),
+  viewed: false
+}, {
+  id: 'conn_13',
+  user_name: 'divya_n',
+  full_name: 'Divya Nair',
+  phone: '+91 94443 12345',
+  dob: '18/06/1994',
+  gender: 'Female',
+  email: 'divya.nair@kochiaudits.com',
+  membership_plan: 'Basic',
+  designation: 'Junior Tax Analyst • Kochi Office',
+  id_badge: 'ID: 9021-X',
+  avatar: require('../../assets/elena_profile.png'),
   viewed: false
 }];
 const initialApproved = [{
@@ -43,19 +191,90 @@ const initialApproved = [{
   designation: 'MGM • STA',
   avatar: require('../../assets/admin_profile.png')
 }];
-const initialEvents = [{
-  id: 'e1',
-  title: 'Tax Ethics Round-Table',
-  date: 'OCT 14, 2026',
-  location: 'Virtual Session',
-  attendees: 148
-}, {
-  id: 'e2',
-  title: 'Annual Society Gala',
-  date: 'OCT 22, 2026',
-  location: 'Grand Ballroom, City Center',
-  attendees: 192
-}];
+const initialEvents = [
+  {
+    id: 'e1',
+    title: 'Tax Ethics Round-Table',
+    date: 'OCT 14, 2026',
+    location: 'Virtual Session',
+    attendees: 148,
+    capacity: 300,
+    description: 'This event brings together taxation professionals, regulators, and industry leaders to discuss regulatory policies and audit automation trends.'
+  },
+  {
+    id: 'e2',
+    title: 'Annual Society Gala',
+    date: 'OCT 22, 2026',
+    location: 'Grand Ballroom, City Center',
+    attendees: 192,
+    capacity: 400,
+    description: 'An elegant evening celebrating professional achievements and industry collaboration within our tax association.'
+  },
+  {
+    id: 'e3',
+    title: 'GST Audit Automation Seminar',
+    date: 'JUL 18, 2026',
+    location: 'Convention Hall & Virtual',
+    attendees: 215,
+    capacity: 500,
+    description: 'Learn about the latest GST audit automated systems, API interfaces, and direct filing reconciliation frameworks.'
+  },
+  {
+    id: 'e4',
+    title: 'Corporate Tax Compliance Summit',
+    date: 'AUG 05, 2026',
+    location: 'Finance Hub Auditorium',
+    attendees: 110,
+    capacity: 200,
+    description: 'A detailed overview of modern corporate tax audit mandates and compliance structures for global enterprises.'
+  },
+  {
+    id: 'e5',
+    title: 'International Tax Treaty Forum',
+    date: 'SEP 12, 2026',
+    location: 'Virtual Session',
+    attendees: 75,
+    capacity: 150,
+    description: 'Focusing on double tax avoidance agreements (DTAA), multilateral instruments, and global transfer pricing frameworks.'
+  },
+  {
+    id: 'e6',
+    title: 'Q1 Financial Reporting Workshop',
+    date: 'APR 10, 2026',
+    location: 'TAS Training Center',
+    attendees: 95,
+    capacity: 100,
+    description: 'Hands-on training session covering advanced quarterly financial reporting guidelines and audit preparation steps.'
+  },
+  {
+    id: 'e7',
+    title: 'FY2025 Tax Planning Forum',
+    date: 'MAY 15, 2026',
+    location: 'Virtual Session',
+    attendees: 340,
+    capacity: 400,
+    description: 'Our annual tax planning framework overview covering standard deductions, tax credits, and changes in corporate codes.'
+  },
+  {
+    id: 'e8',
+    title: 'TAS Audit Standards Seminar',
+    date: 'MAR 12, 2026',
+    location: 'Conference Hall B',
+    attendees: 80,
+    capacity: 150,
+    description: 'Annual review of regional auditing standards harmonization and compliance procedures.'
+  },
+  {
+    id: 'e9',
+    title: 'GST Return Filing Workshop',
+    date: 'FEB 28, 2026',
+    location: 'Virtual Session',
+    attendees: 250,
+    capacity: 300,
+    description: 'Step-by-step practical session on filing quarterly GST returns and resolving reconciliation issues.'
+  }
+];
+
 
 // Simple Pub-Sub Store
 class DbStore {
@@ -65,173 +284,565 @@ class DbStore {
   posts = [{
     id: '1',
     title: 'Annual Fiscal Review: 2023 Highlights',
-    body: 'Explore the key findings and growth metrics from the TAS accounting...',
+    body: 'Explore the key findings and growth metrics from the TAS accounting network.',
     status: 'published',
     isPrivate: false,
     reach: '1.2k',
     likes: 342,
     comments: 89,
     shares: 12,
-    postedDate: 'Oct 24, 2023'
+    postedDate: 'Oct 24, 2023',
+    commentsList: []
   }, {
     id: '2',
-    title: 'Car service Annual',
-    body: 'Explore the key findings and growth metrics from the TAS accounting...',
+    title: 'Car service Annual Guidelines',
+    body: 'Centralized rules regarding company vehicle provisioning and fuel auditing standards for fiscal year 2024.',
     status: 'published',
     isPrivate: false,
     reach: '5.2k',
     likes: 142,
     comments: 90,
     shares: 12,
-    postedDate: 'Oct 14, 2023'
+    postedDate: 'Oct 14, 2023',
+    commentsList: []
   }, {
     id: '3',
     title: 'Internal Memo: Staff Accreditation',
     body: 'DRAFT: Please review the attached document regarding the 2024...',
     status: 'draft',
     isPrivate: true,
-    lastSaved: '2 hours ago'
+    lastSaved: '2 hours ago',
+    commentsList: []
   }, {
     id: '4',
     title: 'Q3 Financial Guidelines Update',
     body: 'This document outlines the revised reporting standards for all TAS registered members. Please ensure compliance with the updated audit trail requirements. The new measures focus on enhancing digital verification and institutional transparency across our multi-tier accounting frameworks.',
     status: 'draft',
     isPrivate: true,
-    lastSaved: '12 hours ago'
+    lastSaved: '12 hours ago',
+    commentsList: []
   }, {
     id: '5',
     title: 'Tax Reform Analysis Brief',
     body: 'A deep dive into the recent legislative changes regarding international tax credits...',
     status: 'draft',
     isPrivate: true,
-    lastSaved: '12 days ago'
-  }];
-  dms = [
-    { id: 'marcus_t', name: 'Marcus Thornton', text: 'Please review the Q4 audit results', time: '2m ago', avatar: require('../../assets/admin_profile.png'), unread: true, viewed: false },
-    { id: 'elena', name: 'Elena Rodriguez', text: 'The broadcast for the Annual Gala', time: '15m ago', avatar: require('../../assets/elena_profile.png'), unread: true, viewed: false },
-    { id: 'julian', name: 'Julian Vance', text: 'Sent a file: budget_proposal_2024.pdf', time: '1h ago', avatar: require('../../assets/admin_profile.png'), unread: false, viewed: true },
-    { id: 'sarah', name: 'Sarah oenkins', text: 'New membership applications are', time: '3h ago', avatar: require('../../assets/elena_profile.png'), unread: true, viewed: false },
-    { id: 'david', name: 'David Chen', text: '[Draft] The reconciliation is almost complete...', time: 'Yesterday', avatar: require('../../assets/admin_profile.png'), unread: false, viewed: true },
-  ];
-  groups = [
-    { 
-      id: 'tax_ethics', 
-      name: 'Tax Ethics & Compliance', 
-      category: 'Specialized', 
-      badge: 'SPECIALIZED', 
-      description: 'Standard-setting body for corporate tax ethics and professional integrity...', 
-      member_count: 1248, 
-      icon: 'gavel' 
-    },
-    { 
-      id: 'southern_auditors', 
-      name: 'Southern Region Auditors', 
-      category: 'Regional Chapters', 
-      badge: 'REGIONAL', 
-      description: 'The primary hub for audit professionals operating in the Southern economic...', 
-      member_count: 856, 
-      icon: 'location' 
-    },
-    { 
-      id: 'junior_accountants', 
-      name: 'Junior Accountants Network', 
-      category: 'Public', 
-      badge: 'PUBLIC', 
-      description: 'A collaborative space for newly qualified CPAs and students to share resources...', 
-      member_count: 4102, 
-      icon: 'chat' 
-    },
-    { 
-      id: 'audit_integrity', 
-      name: 'Audit Integrity Watch', 
-      category: 'Confidential', 
-      badge: 'CONFIDENTIAL', 
-      description: 'Internal monitoring committee focused on cross-referencing regional audit...', 
-      member_count: 42, 
-      icon: 'shield' 
-    }
-  ];
-  members = [{
-    id: '1',
-    name: 'Dr. Alistair Vance',
-    designation: 'Chief Financial Auditor',
-    company: 'Global Trust',
-    memberId: 'TAS-9920-PL',
-    tier: 'PLATINUM',
-    tierLabel: 'PLATINUM ELITE',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: true
-  }, {
-    id: '2',
-    name: 'Elena Rodriguez',
-    designation: 'Partner',
-    company: 'Rodriguez & Assoc.',
-    memberId: 'TAS-4412-SR',
-    tier: 'SENIOR',
-    tierLabel: 'SENIOR FELLOW',
-    avatar: require('../../assets/elena_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '3',
-    name: 'Jameson Thorne',
-    designation: 'Forensic Accountant',
-    company: 'TAS Governance',
-    memberId: 'TAS-8801-AS',
-    tier: 'ASSOCIATE',
-    tierLabel: 'ASSOCIATE',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
-  }, {
-    id: '4',
-    name: 'Sarah Jenkins',
-    designation: 'Senior Auditor',
-    company: 'PKF International Ltd.',
-    memberId: 'TAS-2024-8842',
-    tier: 'PLATINUM',
-    tierLabel: 'Platinum Member',
-    avatar: require('../../assets/elena_profile.png'),
-    hasGreenBorder: true
-  }, {
-    id: '5',
-    name: 'Marcus Vance',
-    designation: 'Tax Strategist',
-    company: 'Vance Partners',
-    memberId: 'TAS-5521-SR',
-    tier: 'SENIOR',
-    tierLabel: 'SENIOR FELLOW',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
+    lastSaved: '12 days ago',
+    commentsList: []
   }, {
     id: '6',
-    name: 'Clara Oswald',
-    designation: 'Compliance Lead',
-    company: 'Clara Audits Ltd.',
-    memberId: 'TAS-1209-AS',
-    tier: 'ASSOCIATE',
-    tierLabel: 'ASSOCIATE',
-    avatar: require('../../assets/elena_profile.png'),
-    hasGreenBorder: false
+    title: 'Regional Auditing Standards Harmonization',
+    body: 'Following the TAS annual summit, the board has approved the new harmonization policy for regional audits. All regional offices must adopt the unified template starting July 1st. Read the full compliance circular in the resources folder.',
+    status: 'published',
+    isPrivate: false,
+    reach: '2.5k',
+    likes: 114,
+    comments: 28,
+    shares: 5,
+    postedDate: 'May 12, 2026',
+    commentsList: []
   }, {
     id: '7',
-    name: 'Rupert Thorne',
-    designation: 'Junior Researcher',
-    company: 'City University',
-    memberId: 'TAS-3041-ST',
-    tier: 'STUDENT',
-    tierLabel: 'STUDENT MEMBER',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
+    title: 'Welcome New Board Members',
+    body: 'We are thrilled to welcome our newly elected board members for the 2026-2027 fiscal term. Their combined expertise in international taxation and digital fraud auditing will guide TAS through our next phase of expansion.',
+    status: 'published',
+    isPrivate: false,
+    reach: '3.1k',
+    likes: 198,
+    comments: 2,
+    shares: 9,
+    postedDate: 'Jun 05, 2026',
+    commentsList: [
+      {
+        id: 'c7_1',
+        authorName: 'Dr. Alistair Vance',
+        avatar: require('../../assets/admin_profile.png'),
+        timestamp: '2d ago',
+        content: 'A warm welcome to the new members. Exciting times ahead for the TAS board!',
+        likesCount: 12,
+        isLiked: false
+      },
+      {
+        id: 'c7_2',
+        authorName: 'Elena Rodriguez',
+        avatar: require('../../assets/elena_profile.png'),
+        timestamp: '1d ago',
+        content: 'Looking forward to working together on the upcoming compliance frameworks.',
+        likesCount: 8,
+        isLiked: false
+      }
+    ]
   }, {
     id: '8',
-    name: 'Liam Neeson',
-    designation: 'Security Director',
-    company: 'United Group',
-    memberId: 'TAS-9988-SR',
-    tier: 'SENIOR',
-    tierLabel: 'SENIOR FELLOW',
-    avatar: require('../../assets/admin_profile.png'),
-    hasGreenBorder: false
+    title: 'Upcoming Administrative Server Maintenance',
+    body: 'Please note that the central TAS administrative portal will undergo scheduled security updates and database optimization on Sunday, June 21st, between 02:00 and 06:00 UTC. Some features may be temporarily offline during this period.',
+    status: 'published',
+    isPrivate: true,
+    reach: '900',
+    likes: 15,
+    comments: 3,
+    shares: 0,
+    postedDate: 'Just now',
+    commentsList: [
+      {
+        id: 'c8_1',
+        authorName: 'Elena Rodriguez',
+        avatar: require('../../assets/elena_profile.png'),
+        timestamp: '2h ago',
+        content: 'Is there any database downtime expected during this period?',
+        likesCount: 5,
+        isLiked: false
+      },
+      {
+        id: 'c8_2',
+        authorName: 'Sarah Jenkins',
+        avatar: require('../../assets/elena_profile.png'),
+        timestamp: '1h ago',
+        content: 'Thanks for the heads up! I will let my audit team know to wrap up entries early.',
+        likesCount: 3,
+        isLiked: false
+      },
+      {
+        id: 'c8_3',
+        authorName: 'Jameson Thorne',
+        avatar: require('../../assets/admin_profile.png'),
+        timestamp: '30m ago',
+        content: 'Will secure VPN logins be affected by the maintenance window?',
+        likesCount: 2,
+        isLiked: false
+      }
+    ]
   }];
+  dms = [
+    {
+      id: 'sanjay_r',
+      name: 'Sanjay Ramasamy',
+      text: 'I just sent you the updated reconciliation...',
+      time: '2:06 PM',
+      unread: true,
+      viewed: false,
+      online: true,
+      initials: 'SR',
+      initialsBg: '#E2FBE8',
+      initialsColor: '#0D3866',
+      avatar: null
+    },
+    {
+      id: 'ram_k',
+      name: 'Ram Kumar',
+      text: "Sounds good! Let me know when you're ...",
+      time: '2:07 PM',
+      unread: false,
+      viewed: true,
+      online: false,
+      initials: 'RK',
+      initialsBg: '#FFF7ED',
+      initialsColor: '#0D3866',
+      avatar: null
+    },
+    {
+      id: 'sanjeev_s',
+      name: 'Sanjeev Senthil',
+      text: 'I just sent you the updated reconciliation...',
+      time: '2:07 PM',
+      unread: true,
+      viewed: false,
+      online: true,
+      initials: 'SS',
+      initialsBg: '#F5F3FF',
+      initialsColor: '#0D3866',
+      avatar: null
+    }
+  ];
+  groups = [
+    {
+      id: 'tc_announcements',
+      name: 'Announcements',
+      category: 'TAX COMPLIANCE & AUDIT NETWORK',
+      categoryMembers: '4 Members',
+      categoryBg: '#E8EAF6',
+      icon: 'megaphone',
+      iconBg: '#E8F5E9',
+      iconColor: '#4CAF50',
+      lastUser: 'Pradeep Raj',
+      text: 'Pradeep Raj: Are we meeting offline today fo...',
+      time: '14:32',
+      unreadCount: 1,
+    },
+    {
+      id: 'tc_corporate',
+      name: 'Corporate Tax Auditing',
+      category: 'TAX COMPLIANCE & AUDIT NETWORK',
+      categoryMembers: '4 Members',
+      categoryBg: '#E8EAF6',
+      icon: 'user',
+      iconBg: '#FFF8E1',
+      iconColor: '#FFB300',
+      lastUser: 'Sanjeev Senthil',
+      text: 'Sanjeev Senthil: Guys, are the Q4 tax s...',
+      time: '26/03/2026',
+      unreadCount: 3,
+    },
+    {
+      id: 'tc_gst',
+      name: 'GST & Indirect Tax Reforms',
+      category: 'TAX COMPLIANCE & AUDIT NETWORK',
+      categoryMembers: '4 Members',
+      categoryBg: '#E8EAF6',
+      icon: 'user',
+      iconBg: '#F3E5F5',
+      iconColor: '#8E24AA',
+      lastUser: 'Sanjeev Senthil',
+      text: "Sanjeev Senthil: Guys I'm going to clos...",
+      time: '17/03/2026',
+      unreadCount: 0,
+    },
+    {
+      id: 'itc_announcements',
+      name: 'Announcements',
+      category: 'INTERNATIONAL TAXATION COUNCIL',
+      categoryMembers: '3 Members',
+      categoryBg: '#E8F5E9',
+      icon: 'megaphone',
+      iconBg: '#E8F5E9',
+      iconColor: '#4CAF50',
+      lastUser: 'Priya Mani',
+      text: 'Priya Mani published "OECD guidelines...',
+      time: '28/03/2026',
+      unreadCount: 0,
+    },
+    {
+      id: 'itc_transfer',
+      name: 'Cross-Border Transfer Pricing',
+      category: 'INTERNATIONAL TAXATION COUNCIL',
+      categoryMembers: '3 Members',
+      categoryBg: '#E8F5E9',
+      icon: 'user',
+      iconBg: '#FFEBEE',
+      iconColor: '#E53935',
+      lastUser: 'Tamil Selvan',
+      text: 'Tamil Selvan: Thanks for the tax heads...',
+      time: '28/03/2026',
+      unreadCount: 0,
+    }
+  ];
+  communityMembers = {
+    'TAX COMPLIANCE & AUDIT NETWORK': ['m1', 'm2', 'm3', 'm4'],
+    'INTERNATIONAL TAXATION COUNCIL': ['m2', 'm5', 'm6']
+  };
+  members = [
+    {
+      id: 'm1',
+      name: 'Ramesh Krishnan, CPA',
+      designation: 'Chief Tax Consultant',
+      company: 'Chennai Finance Partners',
+      memberId: 'TAS-2026-CH01',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'ramesh.krishnan@tas-governance.org'
+    },
+    {
+      id: 'm2',
+      name: 'Priya Sundaram',
+      designation: 'Senior Audit Partner',
+      company: 'Bengaluru Audits Ltd.',
+      memberId: 'TAS-2026-BL02',
+      tier: 'Lifetime',
+      tierLabel: 'Lifetime Fellow',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+      email: 'priya.sundaram@tas-governance.org'
+    },
+    {
+      id: 'm3',
+      name: 'Lakshmi Narayanan',
+      designation: 'Forensic Accountant',
+      company: 'Madurai Tax Associates',
+      memberId: 'TAS-2026-MD03',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'lakshmi.narayanan@tas-governance.org'
+    },
+    {
+      id: 'm4',
+      name: 'Karthik Venkatraman',
+      designation: 'Corporate Audit Director',
+      company: 'Coimbatore Audit Corp',
+      memberId: 'TAS-2026-CB04',
+      tier: 'Professional',
+      tierLabel: 'Professional Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'karthik.venkatraman@tas-governance.org'
+    },
+    {
+      id: 'm5',
+      name: 'Meera Rajagopal',
+      designation: 'Indirect Tax Specialist',
+      company: 'Kochi Compliance Group',
+      memberId: 'TAS-2026-KC05',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+      email: 'meera.rajagopal@tas-governance.org'
+    },
+    {
+      id: 'm6',
+      name: 'Sridhar Srinivasan',
+      designation: 'Chief Financial Officer',
+      company: 'Hyderabad FinServices',
+      memberId: 'TAS-2026-HD06',
+      tier: 'Lifetime',
+      tierLabel: 'Lifetime Fellow',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'sridhar.srinivasan@tas-governance.org'
+    },
+    {
+      id: 'm7',
+      name: 'Ananth Padmanabhan',
+      designation: 'Tax Compliance Officer',
+      company: 'Thiruvananthapuram Legal',
+      memberId: 'TAS-2026-TR07',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'ananth.padmanabhan@tas-governance.org'
+    },
+    {
+      id: 'm8',
+      name: 'Divya Ranganathan',
+      designation: 'Finance Director',
+      company: 'Chennai Group of Industries',
+      memberId: 'TAS-2026-CH08',
+      tier: 'Professional',
+      tierLabel: 'Professional Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
+      email: 'divya.ranganathan@tas-governance.org'
+    },
+    {
+      id: 'm9',
+      name: 'Vignesh Balasubramanian',
+      designation: 'Audit Manager',
+      company: 'Mysore Consultants Ltd.',
+      memberId: 'TAS-2026-MS09',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'vignesh.balasubramanian@tas-governance.org'
+    },
+    {
+      id: 'm10',
+      name: 'Kavin Selvam',
+      designation: 'Junior Accountant',
+      company: 'Trichy FinCorp',
+      memberId: 'TAS-2026-TC10',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'kavin.selvam@tas-governance.org'
+    },
+    {
+      id: 'm11',
+      name: 'Sandhya Ramachandran',
+      designation: 'Wealth Management Specialist',
+      company: 'Bangalore Wealth Advisors',
+      memberId: 'TAS-2026-BL11',
+      tier: 'Professional',
+      tierLabel: 'Professional Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
+      email: 'sandhya.ramachandran@tas-governance.org'
+    },
+    {
+      id: 'm12',
+      name: 'Ashwin Ravichandran',
+      designation: 'Senior Auditor',
+      company: 'Chennai Audit Corp',
+      memberId: 'TAS-2026-CH12',
+      tier: 'Lifetime',
+      tierLabel: 'Lifetime Fellow',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'ashwin.ravichandran@tas-governance.org'
+    },
+    {
+      id: 'm13',
+      name: 'Rajeshwari Iyer',
+      designation: 'Chief Treasurer',
+      company: 'Tanjore Trust',
+      memberId: 'TAS-2026-TJ13',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+      email: 'rajeshwari.iyer@tas-governance.org'
+    },
+    {
+      id: 'm14',
+      name: 'Venkatadri Naidu',
+      designation: 'Senior Tax Specialist',
+      company: 'Vizag Exports Co.',
+      memberId: 'TAS-2026-VZ14',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'venkatadri.naidu@tas-governance.org'
+    },
+    {
+      id: 'm15',
+      name: 'Shalini Prabhakar',
+      designation: 'Indirect Tax Consultant',
+      company: 'Bengaluru Advisory Services',
+      memberId: 'TAS-2026-BL15',
+      tier: 'Professional',
+      tierLabel: 'Professional Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
+      email: 'shalini.prabhakar@tas-governance.org'
+    },
+    {
+      id: 'm16',
+      name: 'Vijay Raghavan',
+      designation: 'Corporate Auditor',
+      company: 'Salem Steel Corp',
+      memberId: 'TAS-2026-SL16',
+      tier: 'Lifetime',
+      tierLabel: 'Lifetime Fellow',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'vijay.raghavan@tas-governance.org'
+    },
+    {
+      id: 'm17',
+      name: 'Deepa Muthukumar',
+      designation: 'Tax Compliance Analyst',
+      company: 'Chennai Port Services',
+      memberId: 'TAS-2026-CH17',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+      email: 'deepa.muthukumar@tas-governance.org'
+    },
+    {
+      id: 'm18',
+      name: 'Balaji Viswanathan',
+      designation: 'Tax Partner',
+      company: 'Balaji & Associates',
+      memberId: 'TAS-2026-BL18',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'balaji.viswanathan@tas-governance.org'
+    },
+    {
+      id: 'm19',
+      name: 'Nithya Kalyani',
+      designation: 'Finance Auditor',
+      company: 'Madurai Spinning Mills',
+      memberId: 'TAS-2026-MD19',
+      tier: 'Professional',
+      tierLabel: 'Professional Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
+      email: 'nithya.kalyani@tas-governance.org'
+    },
+    {
+      id: 'm20',
+      name: 'Hariharan Sastry',
+      designation: 'Chief Accountant',
+      company: 'Hyderabad Holdings Ltd.',
+      memberId: 'TAS-2026-HD20',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'hariharan.sastry@tas-governance.org'
+    },
+    {
+      id: 'm21',
+      name: 'Archana Ganesan',
+      designation: 'Junior Auditor',
+      company: 'Trichy Accounts Group',
+      memberId: 'TAS-2026-TC21',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: false,
+      email: 'archana.ganesan@tas-governance.org'
+    },
+    {
+      id: 'm22',
+      name: 'Suresh Kumar Swamy',
+      designation: 'Senior Tax Advisor',
+      company: 'Bangalore Consulting',
+      memberId: 'TAS-2026-BL22',
+      tier: 'Professional',
+      tierLabel: 'Professional Member',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: false,
+      email: 'suresh.swamy@tas-governance.org'
+    },
+    {
+      id: 'm23',
+      name: 'Vikramaditya Reddy',
+      designation: 'Audit Director',
+      company: 'Hyderabad Metro Corp',
+      memberId: 'TAS-2026-HD23',
+      tier: 'Lifetime',
+      tierLabel: 'Lifetime Fellow',
+      avatar: require('../../assets/admin_profile.png'),
+      hasGreenBorder: true,
+      email: 'vikramaditya.reddy@tas-governance.org'
+    },
+    {
+      id: 'm24',
+      name: 'Janaki Ramaswamy',
+      designation: 'Senior Tax Consultant',
+      company: 'Coimbatore Textiles',
+      memberId: 'TAS-2026-CB24',
+      tier: 'Premium',
+      tierLabel: 'Premium Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+      email: 'janaki.ramaswamy@tas-governance.org'
+    },
+    {
+      id: 'm25',
+      name: 'Manikandan Pillai',
+      designation: 'Junior Accountant',
+      company: 'Kerala Agri Products Ltd.',
+      memberId: 'TAS-2026-KL25',
+      tier: 'Basic',
+      tierLabel: 'Basic Member',
+      avatar: require('../../assets/admin_profile.png'),
+      email: 'manikandan.pillai@tas-governance.org'
+    },
+    {
+      id: 'm26',
+      name: 'Sarah Jenkins',
+      designation: 'Senior Auditor',
+      company: 'Texcity Financial Service',
+      memberId: 'TAS-2026-00125',
+      tier: 'Platinum',
+      tierLabel: 'Platinum Member',
+      avatar: require('../../assets/elena_profile.png'),
+      hasGreenBorder: true,
+      email: 'thiru.acc@example.com'
+    }
+  ];
   groupPosts = {
     'tax_ethics': [
       {
@@ -283,22 +894,32 @@ class DbStore {
     ]
   };
   messages = {
-    'marcus_t': [
-      { id: '1', sender: 'them', text: "Please review the Q4 audit results", time: '2m ago' }
+    'sanjay_r': [
+      { id: '1', sender: 'them', text: "I just sent you the updated reconciliation reports for Q3.", time: '2:05 PM' },
+      { id: '2', sender: 'them', text: "I just sent you the updated reconciliation...", time: '2:06 PM' }
     ],
-    'elena': [
-      { id: '1', sender: 'them', text: "The broadcast for the Annual Gala", time: '15m ago' }
+    'ram_k': [
+      { id: '1', sender: 'me', text: "Let's review the tax guidelines tomorrow.", time: '2:00 PM' },
+      { id: '2', sender: 'them', text: "Sounds good! Let me know when you're ...", time: '2:07 PM' }
     ],
-    'julian': [
-      { id: '1', sender: 'them', text: "Sent a file: budget_proposal_2024.pdf", time: '1h ago', document: 'budget_proposal_2024.pdf' }
+    'sanjeev_s': [
+      { id: '1', sender: 'them', text: "Hi Marcus, the compliance logs are ready.", time: '2:06 PM' },
+      { id: '2', sender: 'them', text: "I just sent you the updated reconciliation...", time: '2:07 PM' }
     ],
-    'sarah': [
-      { id: '1', sender: 'them', text: "Hi Marcus, I've just uploaded the Q3 Compliance Audit. Could you take a quick look?", time: '10:24 AM' },
-      { id: '2', sender: 'me', text: "Thanks Sarah. I'll review it right away. Is there anything specific you're concerned about?", time: '10:26 AM', status: 'READ' },
-      { id: '3', sender: 'them', text: "New membership applications are", time: '3h ago' }
+    'tc_announcements': [
+      { id: '1', sender: 'them', senderName: 'Pradeep Raj', text: 'Are we meeting offline today for the tax compliance review?', time: '14:32' }
     ],
-    'david': [
-      { id: '1', sender: 'them', text: "[Draft] The reconciliation is almost complete...", time: 'Yesterday' }
+    'tc_corporate': [
+      { id: '1', sender: 'them', senderName: 'Sanjeev Senthil', text: 'Guys, are the Q4 tax schedules ready for PKF team?', time: '26/03/2026' }
+    ],
+    'tc_gst': [
+      { id: '1', sender: 'them', senderName: 'Sanjeev Senthil', text: "Guys I'm going to close the indirect tax ledger by 5 PM.", time: '17/03/2026' }
+    ],
+    'itc_announcements': [
+      { id: '1', sender: 'them', senderName: 'Priya Mani', text: 'Priya Mani published "OECD guidelines on cross-border tax transparency".', time: '28/03/2026' }
+    ],
+    'itc_transfer': [
+      { id: '1', sender: 'them', senderName: 'Tamil Selvan', text: 'Tamil Selvan: Thanks for the tax heads up, I will check the pricing models.', time: '28/03/2026' }
     ]
   };
   postsCount = 5; // base initial posts
@@ -426,6 +1047,37 @@ class DbStore {
       console.warn('Failed to insert event into Supabase:', e);
     }
   }
+  async deleteEvent(id) {
+    this.events = this.events.filter(e => e.id !== id);
+    this.notify();
+
+    try {
+      await supabase.from('events').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Failed to delete event from Supabase:', e);
+    }
+  }
+  async updateEvent(updatedEvent) {
+    this.events = this.events.map(e => e.id === updatedEvent.id ? { ...e, ...updatedEvent } : e);
+    this.notify();
+
+    try {
+      let parsedDate = new Date(updatedEvent.date);
+      if (isNaN(parsedDate.getTime())) {
+        parsedDate = new Date();
+      }
+      await supabase.from('events').update({
+        title: updatedEvent.title,
+        date: parsedDate.toISOString(),
+        start_time: updatedEvent.startTime || '09:00 AM',
+        location: updatedEvent.location,
+        capacity: updatedEvent.capacity || 300,
+        description: updatedEvent.description || ''
+      }).eq('id', updatedEvent.id);
+    } catch (e) {
+      console.warn('Failed to update event in Supabase:', e);
+    }
+  }
   setPostsCount(count) {
     this.postsCount = count;
     this.notify();
@@ -457,6 +1109,46 @@ class DbStore {
   }
   getDms() {
     return this.dms;
+  }
+  async getOrCreateDm(memberId, name, avatar) {
+    let dm = this.dms.find(d => d.id === memberId || d.name === name);
+    if (!dm) {
+      const avatarSource = avatar || require('../../assets/elena_profile.png');
+      dm = {
+        id: memberId,
+        name: name,
+        text: 'No messages yet',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        unread: false,
+        viewed: true,
+        avatar: avatarSource
+      };
+      this.dms.push(dm);
+      if (!this.messages[memberId]) {
+        this.messages[memberId] = [];
+      }
+      this.notify();
+      try {
+        let avatarUrlStr = '';
+        if (avatarSource) {
+          if (typeof avatarSource === 'number') {
+            avatarUrlStr = avatarSource === require('../../assets/elena_profile.png') ? 'elena_profile.png' : 'admin_profile.png';
+          } else if (avatarSource.uri) {
+            avatarUrlStr = avatarSource.uri;
+          }
+        }
+        await supabase.from('dms').insert([{
+          id: memberId,
+          name: name,
+          last_text: 'No messages yet',
+          last_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          avatar_url: avatarUrlStr,
+          unread: false,
+          viewed: true
+        }]);
+      } catch (e) {}
+    }
+    return dm;
   }
   getMessages(chatId) {
     return this.messages[chatId] || [];
@@ -695,28 +1387,56 @@ class DbStore {
 
     // Memberships Analysis metrics
     const activeMembershipsVal = 15000 + approvedCount;
-    const membershipRevenueVal = 428500 + approvedCount * 3500; // e.g. increases by $3500 per approved user
+    const membershipRevenueVal = 1240000 + approvedCount * 35000; // e.g. increases by ₹35,000 per approved user
     const conversionRateVal = 24.8 + approvedCount * 0.4;
     const newSalesVal = 142 + approvedCount;
 
     // Membership tier distribution calculations
-    const platinumFellowPct = Math.round(40 + approvedCount * 0.2);
-    const seniorAssociatePct = Math.round(25 + approvedCount * 0.1);
-    const associatePct = Math.round(20 - approvedCount * 0.1);
-    const studentPct = 100 - (platinumFellowPct + seniorAssociatePct + associatePct);
+    const lifetimePct = Math.round(40 + approvedCount * 0.2);
+    const premiumPct = Math.round(25 + approvedCount * 0.1);
+    const professionalPct = Math.round(20 - approvedCount * 0.1);
+    const basicPct = 100 - (lifetimePct + premiumPct + professionalPct);
+
+    // Post Analytics
+    const parseReach = (reachStr) => {
+      if (!reachStr) return 0;
+      if (typeof reachStr === 'number') return reachStr;
+      const clean = reachStr.toString().toLowerCase().trim();
+      if (clean.endsWith('k')) {
+        return parseFloat(clean) * 1000;
+      }
+      return parseInt(clean, 10) || 0;
+    };
+
+    const publishedPosts = this.posts.filter(p => p.status === 'published');
+    const totalPostViewsVal = publishedPosts.reduce((sum, p) => sum + parseReach(p.reach), 0);
+    const totalPostLikesVal = publishedPosts.reduce((sum, p) => sum + (p.likes || 0), 0);
+    const totalPostCommentsVal = publishedPosts.reduce((sum, p) => sum + (p.comments || 0), 0);
+    const totalPostSharesVal = publishedPosts.reduce((sum, p) => sum + (p.shares || 0), 0);
+    const totalPostActivityVal = totalPostLikesVal + totalPostCommentsVal + totalPostSharesVal;
+
+    const postViewsText = totalPostViewsVal >= 1000 
+      ? `${(totalPostViewsVal / 1000).toFixed(1)}k` 
+      : `${totalPostViewsVal}`;
+    const postLikesText = totalPostLikesVal.toLocaleString();
+    const postActivityText = totalPostActivityVal.toLocaleString();
+
     return {
       totalMembers: totalMembersText,
       revenue: `₹${revenueVal}k`,
       eventRegistrations: eventRegistrationsVal,
       activeMemberships: activeMembershipsVal.toLocaleString(),
-      membershipRevenue: `$${membershipRevenueVal.toLocaleString()}`,
+      membershipRevenue: `₹${(membershipRevenueVal / 100000).toFixed(1)} Lakh`,
       conversionRate: `${conversionRateVal.toFixed(1)}%`,
       newSales: newSalesVal,
+      postViews: postViewsText,
+      postLikes: postLikesText,
+      postActivity: postActivityText,
       distribution: {
-        platinum: platinumFellowPct,
-        senior: seniorAssociatePct,
-        associate: associatePct,
-        student: studentPct
+        lifetime: lifetimePct,
+        premium: premiumPct,
+        professional: professionalPct,
+        basic: basicPct
       }
     };
   }
@@ -816,14 +1536,20 @@ class DbStore {
       // Try to fetch connection approvals count to adjust local state
       const {
         data: queueData
-      } = await supabase.from('connections_queue').select('*, profiles(full_name, department)');
+      } = await supabase.from('connections_queue').select('*, profiles(*)');
       if (queueData) {
         // Sync queue items
         const pending = queueData.filter(q => q.verification_status === 'pending');
         if (pending.length > 0) {
           this.queue = pending.map(item => ({
             id: item.id,
-            user_name: item.profiles?.full_name || 'Anonymous User',
+            user_name: item.profiles?.username || 'Anonymous User',
+            full_name: item.profiles?.full_name || 'Anonymous User',
+            phone: item.profiles?.phone || '+1 555-000-0000',
+            dob: item.profiles?.dob || '01/01/1990',
+            gender: item.profiles?.gender || 'Prefer not to say',
+            email: item.profiles?.email || 'no-email@tas-governance.org',
+            membership_plan: item.profiles?.membership_plan || 'Premium',
             designation: item.profiles?.department || 'Member Request',
             id_badge: `ID: ${item.id.slice(0, 4)}-X`,
             avatar: require('../../assets/admin_profile.png'),
@@ -981,6 +1707,109 @@ class DbStore {
     const post = posts.find(p => p.id === postId);
     if (post) {
       post.bookmarked = !post.bookmarked;
+      this.notify();
+    }
+  }
+  likePost(postId) {
+    const post = this.posts.find(p => p.id === postId);
+    if (post) {
+      post.isLiked = !post.isLiked;
+      post.likes = post.isLiked ? (post.likes || 0) + 1 : (post.likes || 0) - 1;
+      this.notify();
+    }
+  }
+  addComment(postId, comment) {
+    const post = this.posts.find(p => p.id === postId);
+    if (post) {
+      if (!post.commentsList) {
+        post.commentsList = [];
+      }
+      post.commentsList.push(comment);
+      post.comments = (post.comments || 0) + 1;
+      this.notify();
+    }
+  }
+  likeComment(postId, commentId) {
+    const post = this.posts.find(p => p.id === postId);
+    if (post && post.commentsList) {
+      const comment = post.commentsList.find(c => c.id === commentId);
+      if (comment) {
+        comment.isLiked = !comment.isLiked;
+        comment.likesCount = comment.isLiked ? (comment.likesCount || 0) + 1 : (comment.likesCount || 0) - 1;
+        this.notify();
+      }
+    }
+  }
+  addGroupChannel(channel) {
+    this.groups.push(channel);
+    this.notify();
+  }
+  addGroup(group) {
+    const id = group.id || group.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_channel';
+    const newGroup = {
+      id,
+      name: group.name,
+      category: group.category || 'GENERAL',
+      categoryMembers: '1 Members',
+      categoryBg: '#E8EAF6',
+      icon: 'users',
+      iconBg: '#FFF8E1',
+      iconColor: '#FFB300',
+      lastUser: 'System',
+      text: group.description || `Welcome to ${group.name}`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      unreadCount: 0
+    };
+    this.groups.push(newGroup);
+    const catName = group.category || 'GENERAL';
+    if (!this.communityMembers[catName]) {
+      this.communityMembers[catName] = [];
+    }
+    this.communityMembers[catName].push('m1');
+    this.notify();
+  }
+  deleteGroupChannel(channelId) {
+    this.groups = this.groups.filter(g => g.id !== channelId);
+    this.notify();
+  }
+  updateGroupCategory(oldCategoryName, newCategoryName) {
+    this.groups = this.groups.map(g => 
+      g.category === oldCategoryName ? { ...g, category: newCategoryName } : g
+    );
+    this.notify();
+  }
+  deleteGroupCategory(categoryName) {
+    this.groups = this.groups.filter(g => g.category !== categoryName);
+    this.notify();
+  }
+  getCommunityMembers(categoryName) {
+    if (!this.communityMembers[categoryName]) {
+      this.communityMembers[categoryName] = [];
+    }
+    return this.communityMembers[categoryName]
+      .map(id => this.members.find(m => m.id === id || m.memberId === id))
+      .filter(Boolean);
+  }
+  addMemberToCommunity(categoryName, memberId) {
+    if (!this.communityMembers[categoryName]) {
+      this.communityMembers[categoryName] = [];
+    }
+    if (!this.communityMembers[categoryName].includes(memberId)) {
+      this.communityMembers[categoryName].push(memberId);
+      const newCount = this.communityMembers[categoryName].length;
+      this.groups = this.groups.map(g => 
+        g.category === categoryName ? { ...g, categoryMembers: `${newCount} Members` } : g
+      );
+      this.notify();
+    }
+  }
+  removeMemberFromCommunity(categoryName, memberId) {
+    if (this.communityMembers[categoryName]) {
+      this.communityMembers[categoryName] = this.communityMembers[categoryName].filter(id => id !== memberId);
+      const newCount = this.communityMembers[categoryName].length;
+      this.groups = this.groups.map(g => 
+        g.category === categoryName ? { ...g, categoryMembers: `${newCount} Members` } : g
+      );
       this.notify();
     }
   }

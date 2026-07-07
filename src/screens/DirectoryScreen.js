@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, SafeAreaView, Alert, StyleSheet, Platform, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, Alert, StyleSheet, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Search, MessageSquare, Plus, MapPin, IdCard, ArrowUp, Laptop, Link, Users, Edit2 } from 'lucide-react-native';
 import { dbStore } from '../config/dbStore';
 
@@ -26,7 +27,7 @@ export const DirectoryScreen = ({
     });
   };
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 3;
+  const itemsPerPage = 6;
   const eventMatches = (title, date, desc, location) => {
     if (!eventSearchQuery) return true;
     const query = eventSearchQuery.toLowerCase();
@@ -83,8 +84,9 @@ export const DirectoryScreen = ({
       navigation.navigate('MemberProfile', {
         name: member.name,
         role: member.designation,
-        branch: member.tier === 'PLATINUM' ? 'London Branch' : 'Regional Branch',
+        branch: (member.tier === 'Premium' || member.tier === 'Lifetime') ? 'Main Office' : 'Regional Branch',
         tierLabel: member.tierLabel,
+        tier: member.tier,
         memberId: member.memberId,
         joinDate: 'Joined: Jan 2021',
         email: `${member.name.toLowerCase().replace(' ', '.').replace('dr.', '')}@tas-governance.org`,
@@ -106,7 +108,7 @@ export const DirectoryScreen = ({
       Alert.alert('Secure Message', `Initiating secured channel to ${member.name}`);
     }
   };
-  return <SafeAreaView style={styles.container}>
+  return <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -118,26 +120,8 @@ export const DirectoryScreen = ({
       }} />
       </View>
 
-      {/* Segmented Switcher (Members vs Events) */}
-      <View style={styles.switcherContainer}>
-        <View style={styles.switcherTrack}>
-          <TouchableOpacity onPress={() => setSubTab('members')} style={[styles.switcherButton, subTab === 'members' && styles.switcherButtonActive]} activeOpacity={0.8}>
-            <Text style={[styles.switcherText, subTab === 'members' && styles.switcherTextActive]}>
-              Members
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setSubTab('events')} style={[styles.switcherButton, subTab === 'events' && styles.switcherButtonActive]} activeOpacity={0.8}>
-            <Text style={[styles.switcherText, subTab === 'events' && styles.switcherTextActive]}>
-              Events
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Main Scroll Content */}
       <ScrollView ref={scrollViewRef} onScroll={handleScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        {subTab === 'members' ? <>
             {/* Header Titles Row */}
             <View style={styles.sectionHeaderRow}>
               <View style={{
@@ -168,7 +152,7 @@ export const DirectoryScreen = ({
 
               <Text style={styles.searchCardLabel}>Membership Tier</Text>
               <View style={styles.tierPillsRow}>
-                {['ALL', 'PLATINUM', 'SENIOR', 'ASSOCIATE', 'STUDENT'].map(tier => <TouchableOpacity key={tier} onPress={() => handleTierChange(tier)} style={[styles.tierPill, selectedTier === tier && styles.tierPillActive]}>
+                {['ALL', 'Basic', 'Professional', 'Premium', 'Lifetime'].map(tier => <TouchableOpacity key={tier} onPress={() => handleTierChange(tier)} style={[styles.tierPill, selectedTier === tier && styles.tierPillActive]}>
                     <Text style={[styles.tierPillText, selectedTier === tier && styles.tierPillTextActive]}>
                       {tier}
                     </Text>
@@ -188,14 +172,20 @@ export const DirectoryScreen = ({
                   </TouchableOpacity>
                   <View style={styles.memberInfo}>
                     {/* Tier Tag */}
-                    <View style={[styles.tierTag, member.tier === 'PLATINUM' && styles.platinumBadge, member.tier === 'SENIOR' && styles.seniorBadge, member.tier === 'ASSOCIATE' && styles.associateBadge]}>
-                      <Text style={[styles.tierTagText, member.tier === 'PLATINUM' && {
-                  color: '#2B5713'
-                }, member.tier === 'SENIOR' && {
-                  color: '#FFFFFF'
-                }, member.tier === 'ASSOCIATE' && {
-                  color: '#0D3866'
-                }]}>
+                    <View style={[
+                      styles.tierTag, 
+                      member.tier === 'Lifetime' && styles.lifetimeBadge, 
+                      member.tier === 'Premium' && styles.premiumBadge, 
+                      member.tier === 'Professional' && styles.professionalBadge, 
+                      member.tier === 'Basic' && styles.basicBadge
+                    ]}>
+                      <Text style={[
+                        styles.tierTagText, 
+                        member.tier === 'Lifetime' && { color: '#6B21A8' }, 
+                        member.tier === 'Premium' && { color: '#065F46' }, 
+                        member.tier === 'Professional' && { color: '#FFFFFF' }, 
+                        member.tier === 'Basic' && { color: '#475569' }
+                      ]}>
                         {member.tierLabel}
                       </Text>
                     </View>
@@ -256,238 +246,13 @@ export const DirectoryScreen = ({
                 </TouchableOpacity>
               </View>
             </View>
-          </> : <View style={styles.eventsContainer}>
-            {/* Header Title */}
-            <Text style={styles.eventsPageTitle}>Upcoming Events</Text>
-            <Text style={styles.eventsPageSubtitle}>
-              Manage society activities and administrative conferences.
-            </Text>
-
-            {/* SEARCH EVENTS CARD */}
-            <View style={styles.searchCard}>
-              <Text style={styles.searchCardLabel}>Search Events</Text>
-              <View style={styles.searchInputContainer}>
-                <Search size={18} color="#94a3b8" style={{
-              marginRight: 8
-            }} />
-                <TextInput placeholder="Filter by Event Name, Date, or Location..." placeholderTextColor="#94a3b8" value={eventSearchQuery} onChangeText={setEventSearchQuery} style={styles.searchInput} />
-              </View>
-            </View>
-
-            {/* EVENT 1: FLAGSHIP */}
-            {eventMatches('Annual Tax Conference 2024', 'AUG 15-17, 2024', 'flagship', 'Grand Hyatt, Texcity') && <View style={styles.eventCardPremium}>
-                <View style={styles.eventImageContainer}>
-                  <Image source={require('../../assets/annual_conference.png')} style={styles.eventHeroImage} resizeMode="cover" />
-                  <View style={styles.flagshipTag}>
-                    <Text style={styles.flagshipTagText}>FLAGSHIP</Text>
-                  </View>
-                </View>
-
-                <View style={styles.eventPremiumBody}>
-                  <View style={styles.eventRowJustified}>
-                    <Text style={styles.eventPremiumDate}>AUG 15-17, 2024</Text>
-                    <View style={styles.confirmedPill}>
-                      <Text style={styles.confirmedText}>CONFIRMED</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.eventPremiumTitle}>Annual Tax Conference 2024</Text>
-
-                  <View style={styles.eventDetailRow}>
-                    <MapPin size={14} color="#64748b" style={{
-                marginRight: 6
-              }} />
-                    <Text style={styles.eventDetailText}>Grand Hyatt, Texcity</Text>
-                  </View>
-
-                  <View style={styles.eventDetailRow}>
-                    <Users size={14} color="#64748b" style={{
-                marginRight: 6
-              }} />
-                    <Text style={styles.eventDetailText}>450 Registered</Text>
-                  </View>
-
-                  {/* Event Actions */}
-                  <View style={styles.eventActionsRow}>
-                    <TouchableOpacity style={styles.cancelEventBtn} onPress={() => Alert.alert('Cancel Event', 'Are you sure you want to cancel this event?')}>
-                      <Text style={styles.cancelEventText}>Cancel Event</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.editEventBtn} onPress={() => {
-                if (navigation) {
-                  navigation.navigate('CreateEvent', {
-                    isEditing: true,
-                    title: 'Annual Tax Conference 2024',
-                    date: '15/08/2024',
-                    startTime: '09:00 AM',
-                    location: 'Grand Hyatt, Texcity',
-                    capacity: '450',
-                    privacy: 'Members Only',
-                    deadline: '10/08/2024',
-                    description: 'The 2024 Annual Tax Summit is the premier gathering for accounting professionals, providing deep insights into new legislative changes, international compliance standards, and digital transformation in fiscal reporting.'
-                  });
-                }
-              }}>
-                      <Edit2 size={14} color="white" style={{
-                  marginRight: 6
-                }} />
-                      <Text style={styles.editEventText}>Edit Event</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>}
-
-            {/* EVENT 2: ETHICS & COMPLIANCE */}
-            {eventMatches('Ethics & Compliance Seminar', 'SEP 05, 2024', 'Mandatory training for all society members regarding updated 2024 frameworks.', 'TAS Connect Platform') && <View style={styles.eventCardPremium}>
-                <View style={styles.eventPremiumBody}>
-                  <View style={styles.eventHeaderRow}>
-                    <View style={[styles.eventIconBox, {
-                backgroundColor: '#BEF264'
-              }]}>
-                      <Laptop size={18} color="#4D7C0F" />
-                    </View>
-                    <View style={styles.confirmedPillBlue}>
-                      <Text style={styles.confirmedTextBlue}>OPEN</Text>
-                    </View>
-                  </View>
-
-                  <Text style={[styles.eventPremiumDate, {
-              marginTop: 10
-            }]}>SEP 05, 2024</Text>
-                  <Text style={styles.eventPremiumTitle}>Ethics & Compliance Seminar</Text>
-                  <Text style={styles.eventPremiumDesc}>
-                    Mandatory training for all society members regarding updated 2024 frameworks.
-                  </Text>
-
-                  <View style={[styles.eventDetailRow, {
-              marginBottom: 14
-            }]}>
-                    <Link size={14} color="#64748b" style={{
-                marginRight: 6
-              }} />
-                    <Text style={styles.eventLinkText}>TAS Connect Platform</Text>
-                  </View>
-
-                  <TouchableOpacity style={styles.editDetailsBtn} onPress={() => {
-              if (navigation) {
-                navigation.navigate('CreateEvent', {
-                  isEditing: true,
-                  title: 'Ethics & Compliance Seminar',
-                  date: '05/09/2024',
-                  startTime: '10:00 AM',
-                  location: 'TAS Connect Platform',
-                  capacity: '300',
-                  privacy: 'Members Only',
-                  deadline: '01/09/2024',
-                  description: 'Mandatory training for all society members regarding updated 2024 frameworks.'
-                });
-              }
-            }}>
-                    <Edit2 size={14} color="#0D3866" style={{
-                marginRight: 6
-              }} />
-                    <Text style={styles.editDetailsText}>Edit Details</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>}
-
-            {/* EVENT 3: LOCAL CHAPTER NETWORKING */}
-            {eventMatches('Local Chapter Networking', 'OCT 12, 2024', 'Regional mixer for senior partners and upcoming associates.', 'Riverside Executive Lounge') && <View style={styles.eventCardPremium}>
-                <View style={styles.eventPremiumBody}>
-                  <View style={styles.eventHeaderRow}>
-                    <View style={[styles.eventIconBox, {
-                backgroundColor: '#EFF6FF'
-              }]}>
-                      <Users size={18} color="#1E40AF" />
-                    </View>
-                    <View style={styles.confirmedPillGray}>
-                      <Text style={styles.confirmedTextGray}>PLANNING</Text>
-                    </View>
-                  </View>
-
-                  <Text style={[styles.eventPremiumDate, {
-              marginTop: 10
-            }]}>OCT 12, 2024</Text>
-                  <Text style={styles.eventPremiumTitle}>Local Chapter Networking</Text>
-                  <Text style={styles.eventPremiumDesc}>
-                    Regional mixer for senior partners and upcoming associates.
-                  </Text>
-
-                  <View style={[styles.eventDetailRow, {
-              marginBottom: 14
-            }]}>
-                    <MapPin size={14} color="#64748b" style={{
-                marginRight: 6
-              }} />
-                    <Text style={styles.eventDetailText}>Riverside Executive Lounge</Text>
-                  </View>
-
-                  <TouchableOpacity style={styles.editDetailsBtn} onPress={() => {
-              if (navigation) {
-                navigation.navigate('CreateEvent', {
-                  isEditing: true,
-                  title: 'Local Chapter Networking',
-                  date: '12/10/2024',
-                  startTime: '06:00 PM',
-                  location: 'Riverside Executive Lounge',
-                  capacity: '150',
-                  privacy: 'Members Only',
-                  deadline: '05/10/2024',
-                  description: 'Regional mixer for senior partners and upcoming associates.'
-                });
-              }
-            }}>
-                    <Edit2 size={14} color="#0D3866" style={{
-                marginRight: 6
-              }} />
-                    <Text style={styles.editDetailsText}>Manage Planning</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>}
-
-            {/* EVENT 4: PARTICIPATION GOAL */}
-            <View style={styles.goalCard}>
-              <Text style={styles.goalTitle}>Annual Participation Goal</Text>
-              <Text style={styles.goalText}>
-                You're at 82% of the targeted annual event engagement. Reaching 90% unlocks the Regional Chapter Grant.
-              </Text>
-              <View style={styles.goalStatsRow}>
-                <View style={styles.goalStatBox}>
-                  <Text style={styles.goalStatValue}>1.2k</Text>
-                  <Text style={styles.goalStatLabel}>TOTAL ATTENDEES</Text>
-                </View>
-                <View style={styles.goalStatBox}>
-                  <Text style={styles.goalStatValue}>14</Text>
-                  <Text style={styles.goalStatLabel}>EVENTS YTD</Text>
-                </View>
-              </View>
-            </View>
-          </View>}
-
-        {/* Bottom Navigation space */}
-        <View style={{
-        height: 100
-      }} />
       </ScrollView>
 
       {/* Floating Scroll to Top */}
-      {showScrollTop && <TouchableOpacity onPress={scrollToTop} activeOpacity={0.85} style={[styles.scrollTopButton, subTab === 'members' ? {
+      {showScrollTop && <TouchableOpacity onPress={scrollToTop} activeOpacity={0.85} style={[styles.scrollTopButton, {
       bottom: 90
-    } : {
-      bottom: 156
     }]}>
           <ArrowUp size={20} color="white" />
-        </TouchableOpacity>}
-
-      {/* Floating Action Button (FAB) */}
-      {subTab === 'events' && <TouchableOpacity style={styles.fabButton} onPress={() => {
-      if (navigation) {
-        navigation.navigate('CreateEvent');
-      } else {
-        Alert.alert('Create Event', 'Opening form to create a new event...');
-      }
-    }} activeOpacity={0.85}>
-          <Plus size={24} color="white" />
         </TouchableOpacity>}
     </SafeAreaView>;
 };
@@ -495,12 +260,11 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 0,
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: '#F4F7FC'
   },
   header: {
-    height: Platform.OS === 'android' ? 56 + StatusBar.currentHeight : 56,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    backgroundColor: '#E9F0FA',
+    height: 56,
+    backgroundColor: '#EBF3FC',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',
     flexDirection: 'row',
@@ -695,14 +459,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 4
   },
-  platinumBadge: {
-    backgroundColor: '#AEE874' // Green
+  basicBadge: {
+    backgroundColor: '#F1F5F9'
   },
-  seniorBadge: {
-    backgroundColor: '#1E40AF' // Dark blue
+  professionalBadge: {
+    backgroundColor: '#0284C7'
   },
-  associateBadge: {
-    backgroundColor: '#DBEAFE' // Soft blue
+  premiumBadge: {
+    backgroundColor: '#BEF264'
+  },
+  lifetimeBadge: {
+    backgroundColor: '#F3E8FF'
   },
   tierTagText: {
     fontSize: 8,

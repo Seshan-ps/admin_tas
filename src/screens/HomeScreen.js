@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Alert, SafeAreaView, StyleSheet, Dimensions, Modal, Platform, StatusBar } from 'react-native';
-import { MessageSquare, Users, BarChart3, Calendar, FileText, ArrowUp, Send, Share2, ThumbsUp, X } from 'lucide-react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Alert, StyleSheet, Dimensions, Modal, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MessageSquare, Users, Calendar, ArrowUp, Send, Share2, ThumbsUp, X, Bell, PlusCircle } from 'lucide-react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
 const {
   width
@@ -38,6 +40,19 @@ const UserAvatar = ({
     }}>{initials}</Text>
     </View>;
 };
+
+// Custom premium Directory Icon (Book with lens)
+const DirectoryBookIcon = ({ color, size = 18 }) => (
+  <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="4" y="2" width="16" height="20" rx="3" fill="none" stroke={color} strokeWidth="2.5" />
+      <Path d="M8 2v20" stroke={color} strokeWidth="1.5" />
+      <Circle cx="14" cy="10" r="3" stroke={color} strokeWidth="2" fill="white" />
+      <Path d="M16.5 12.5l2.5 2.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  </View>
+);
+
 export const HomeScreen = ({
   onSignOut,
   navigation
@@ -85,95 +100,8 @@ export const HomeScreen = ({
             isLiked: p.isLiked,
             isShared: p.isShared,
             isCommentsExpanded: p.isCommentsExpanded,
-            comments: p.comments
           });
         });
-        const staticPosts = [{
-          id: 'static_1',
-          authorName: 'Texcity Accountants Society',
-          avatar: require('../../assets/logo_icon.png'),
-          subtitle: 'Promoted • 10,240 members',
-          postBody: 'We are pleased to announce the successful rollout of the **Q3 Security Patch** for the national administration portal. All member accounts now benefit from enhanced biometric authentication layers. Ensure your regional office has updated their node.',
-          postImage: require('../../assets/server_room_update.png'),
-          imageTag: 'System Update 4.2.0',
-          likesCount: 42,
-          commentsCount: 12,
-          sharesCount: 0,
-          isLiked: false,
-          isShared: false,
-          isCommentsExpanded: false,
-          memberProfileParams: {
-            name: 'Dr. Alistair Vance',
-            role: 'Chief Financial Auditor',
-            branch: 'London Branch',
-            tierLabel: 'Platinum Member',
-            memberId: 'TAS-9920-PL',
-            joinDate: 'Joined: Jan 2015',
-            email: 'a.vance@tas-governance.org',
-            fullIdCode: '9920-AV-TAS',
-            joinDateFull: 'January 14, 2015',
-            firm: 'Global Trust',
-            avatar: require('../../assets/admin_profile.png')
-          },
-          comments: [{
-            id: 'static_1_1',
-            authorName: 'Sarah Jenkins',
-            avatar: require('../../assets/elena_profile.png'),
-            timestamp: '10m ago',
-            content: 'Great update on the security patch! The biometric layer is a much-needed addition for our regional nodes.',
-            likesCount: 22,
-            isLiked: false
-          }, {
-            id: 'static_1_2',
-            authorName: 'David Chen',
-            timestamp: '45m ago',
-            content: 'Will there be a technical briefing for the IT administrators regarding the node update process?',
-            likesCount: 12,
-            isLiked: false
-          }]
-        }, {
-          id: 'static_2',
-          authorName: 'Elena Rodriguez, CPA',
-          avatar: require('../../assets/elena_profile.png'),
-          subtitle: 'Regional Director at TAS South',
-          postBody: "Is anyone else observing a significant increase in automated reconciliation errors following the latest API update? We've had to revert to manual validation for three major enterprise audits this morning.",
-          quoteText: '"Maintaining fiscal integrity requires human oversight, especially during transition phases."',
-          likesCount: 8,
-          commentsCount: 24,
-          sharesCount: 0,
-          isLiked: true,
-          isShared: false,
-          isCommentsExpanded: false,
-          memberProfileParams: {
-            name: 'Elena Rodriguez',
-            role: 'Partner',
-            branch: 'Rodriguez & Assoc.',
-            tierLabel: 'Senior Fellow',
-            memberId: 'TAS-4412-SR',
-            joinDate: 'Joined: Mar 2018',
-            email: 'elena.rodriguez@tas-governance.org',
-            fullIdCode: '4412-ER-TAS',
-            joinDateFull: 'March 10, 2018',
-            firm: 'Rodriguez & Assoc.',
-            avatar: require('../../assets/elena_profile.png')
-          },
-          comments: [{
-            id: 'static_2_1',
-            authorName: 'Dr. Alistair Vance',
-            avatar: require('../../assets/admin_profile.png'),
-            timestamp: '1h ago',
-            content: "We observed similar reconciliation discrepancies in the London Branch. Reverting to version 4.1.2 solved it temporarily.",
-            likesCount: 5,
-            isLiked: false
-          }, {
-            id: 'static_2_2',
-            authorName: 'Marcus Aurelius',
-            timestamp: '1.5h ago',
-            content: "Thanks for raising this Elena, we are looking into a hotfix patch from the dev side.",
-            likesCount: 3,
-            isLiked: false
-          }]
-        }];
         const mappedDbPosts = dbPosts.map(p => {
           const savedState = stateMap.get(p.id) || {};
           const postBody = `**${p.title}**\n\n${p.body}`;
@@ -184,13 +112,13 @@ export const HomeScreen = ({
             subtitle: p.isPrivate ? 'Private • Admin TAS' : 'Public • Admin TAS',
             postBody: postBody,
             postImage: p.image || undefined,
-            likesCount: savedState.likesCount !== undefined ? savedState.likesCount : p.likes || 0,
-            commentsCount: savedState.commentsCount !== undefined ? savedState.commentsCount : p.comments || 0,
-            sharesCount: savedState.sharesCount !== undefined ? savedState.sharesCount : p.shares || 0,
-            isLiked: savedState.isLiked !== undefined ? savedState.isLiked : false,
-            isShared: savedState.isShared !== undefined ? savedState.isShared : false,
+            likesCount: p.likes || 0,
+            commentsCount: p.comments || 0,
+            sharesCount: p.shares || 0,
+            isLiked: p.isLiked || false,
+            isShared: p.isShared || false,
             isCommentsExpanded: savedState.isCommentsExpanded !== undefined ? savedState.isCommentsExpanded : false,
-            comments: savedState.comments || [],
+            comments: p.commentsList || [],
             timeLabel: p.postedDate || 'Just now',
             memberProfileParams: {
               name: 'Admin TAS',
@@ -208,8 +136,7 @@ export const HomeScreen = ({
           };
         });
 
-        // Combine DB posts (reversed so newest is first) followed by static ones
-        return [...mappedDbPosts].reverse().concat(staticPosts);
+        return [...mappedDbPosts].reverse();
       });
       const unread = dbStore.getDms().some(d => d.unread);
       setHasUnread(unread);
@@ -219,17 +146,7 @@ export const HomeScreen = ({
     return unsubscribe;
   }, []);
   const handleLikePost = postId => {
-    setFeedPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        const isLiked = !post.isLiked;
-        return {
-          ...post,
-          isLiked,
-          likesCount: isLiked ? post.likesCount + 1 : post.likesCount - 1
-        };
-      }
-      return post;
-    }));
+    dbStore.likePost(postId);
   };
   const handleToggleComments = postId => {
     setFeedPosts(prevPosts => prevPosts.map(post => post.id === postId ? {
@@ -238,25 +155,7 @@ export const HomeScreen = ({
     } : post));
   };
   const handleCommentLike = (postId, commentId) => {
-    setFeedPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: post.comments.map(comment => {
-            if (comment.id === commentId) {
-              const isLiked = !comment.isLiked;
-              return {
-                ...comment,
-                isLiked,
-                likesCount: isLiked ? comment.likesCount + 1 : comment.likesCount - 1
-              };
-            }
-            return comment;
-          })
-        };
-      }
-      return post;
-    }));
+    dbStore.likeComment(postId, commentId);
   };
   const handleSharePost = post => {
     setSharingPost(post);
@@ -313,25 +212,16 @@ export const HomeScreen = ({
   const handleAddComment = postId => {
     const text = commentInputs[postId]?.trim();
     if (!text) return;
-    setFeedPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        const newComment = {
-          id: `${postId}_comment_${Date.now()}`,
-          authorName: 'Admin TAS',
-          avatar: require('../../assets/admin_profile.png'),
-          timestamp: 'Just now',
-          content: text,
-          likesCount: 0,
-          isLiked: false
-        };
-        return {
-          ...post,
-          commentsCount: post.commentsCount + 1,
-          comments: [...post.comments, newComment]
-        };
-      }
-      return post;
-    }));
+    const newComment = {
+      id: `${postId}_comment_${Date.now()}`,
+      authorName: 'Admin TAS',
+      avatar: require('../../assets/admin_profile.png'),
+      timestamp: 'Just now',
+      content: text,
+      likesCount: 0,
+      isLiked: false
+    };
+    dbStore.addComment(postId, newComment);
     setCommentInputs(prev => ({
       ...prev,
       [postId]: ''
@@ -372,7 +262,7 @@ export const HomeScreen = ({
     setBroadcastSubject('');
     setBroadcastMessage('');
   };
-  return <SafeAreaView style={styles.container}>
+  return <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.header}>
         {/* Profile Avatar (Left) */}
@@ -380,60 +270,73 @@ export const HomeScreen = ({
           <Image source={require('../../assets/admin_profile.png')} style={styles.avatar} />
         </TouchableOpacity>
 
-        {/* Small Center Logo */}
-        <Image source={require('../../assets/logo_icon.png')} style={styles.headerLogo} resizeMode="contain" />
+        {/* Center Title */}
+        <Text style={styles.headerTitle}>Admin Feed</Text>
 
-        {/* Chat / Messages Button (Right) */}
-        <TouchableOpacity onPress={() => navigation?.navigate('Messages')} activeOpacity={0.8} style={styles.chatButton}>
-          <View style={styles.chatIconContainer}>
-            <MessageSquare size={22} color="#134074" />
-            {hasUnread && <View style={styles.unreadDot} />}
-          </View>
-        </TouchableOpacity>
+        {/* Right Side Group */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Notification Button */}
+          <TouchableOpacity onPress={() => navigation?.navigate('Notification')} activeOpacity={0.8} style={{ padding: 6 }}>
+            <View style={{ position: 'relative', width: 22, height: 22 }}>
+              <Bell size={22} color="#134074" />
+              {dbStore.getQueue().length > 0 && <View style={styles.unreadDot} />}
+            </View>
+          </TouchableOpacity>
+
+          {/* Messages Button */}
+          <TouchableOpacity onPress={() => navigation?.navigate('Messages')} activeOpacity={0.8} style={{ padding: 6, marginLeft: 12 }}>
+            <View style={{ position: 'relative', width: 22, height: 22 }}>
+              <MessageSquare size={22} color="#134074" />
+              {hasUnread && <View style={styles.unreadDot} />}
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* QUICK ACCESS (Static, outside ScrollView) */}
+      <View style={[styles.quickAccessCard, { marginHorizontal: 12, marginTop: 12, marginBottom: 0, paddingVertical: 12, paddingHorizontal: 8 }]}>
+        <Text style={[styles.quickAccessTitle, { marginBottom: 6, paddingLeft: 6 }]}>Quick Access</Text>
+        <View style={styles.gridRow}>
+          {/* Events */}
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigation?.navigate('CreateEvent')}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.gridIconWrapper, { backgroundColor: '#F5F3FF' }]}>
+              <Calendar size={18} color="#7C3AED" />
+            </View>
+            <Text style={styles.gridText} numberOfLines={1}>New Event</Text>
+          </TouchableOpacity>
+
+          {/* New Post */}
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigation?.navigate('MainTabs', { screen: 'Post', params: { action: 'new' } })}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.gridIconWrapper, { backgroundColor: '#FFF7ED' }]}>
+              <PlusCircle size={18} color="#EA580C" />
+            </View>
+            <Text style={styles.gridText} numberOfLines={1}>New Post</Text>
+          </TouchableOpacity>
+
+          {/* Member Directory */}
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigation?.navigate('Directory')}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.gridIconWrapper, { backgroundColor: '#F0FDFA' }]}>
+              <DirectoryBookIcon size={18} color="#0D9488" />
+            </View>
+            <Text style={styles.gridText} numberOfLines={1}>Directory</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main Feed Content */}
       <ScrollView ref={scrollViewRef} onScroll={handleScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} style={styles.feedScroll} contentContainerStyle={styles.feedContentContainer}>
-        {/* SECTION 1: QUICK ACTIONS */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quick Actions</Text>
-          
-          <View style={styles.quickActionsContainer}>
-            {/* User Management */}
-            <TouchableOpacity style={styles.actionRow} onPress={() => navigation?.navigate('Directory')} activeOpacity={0.7}>
-              <View style={styles.actionIconWrapper}>
-                <Users size={18} color="white" />
-              </View>
-              <Text style={styles.actionText}>User Management</Text>
-            </TouchableOpacity>
-
-            {/* Financial Reports */}
-            <TouchableOpacity style={styles.actionRow} onPress={() => navigation?.navigate('Analytics')} activeOpacity={0.7}>
-              <View style={styles.actionIconWrapper}>
-                <BarChart3 size={18} color="white" />
-              </View>
-              <Text style={styles.actionText}>Financial Reports</Text>
-            </TouchableOpacity>
-
-            {/* Event Management */}
-            <TouchableOpacity style={styles.actionRow} onPress={() => navigation?.navigate('Directory', {
-            subTab: 'events'
-          })} activeOpacity={0.7}>
-              <View style={styles.actionIconWrapper}>
-                <Calendar size={18} color="white" />
-              </View>
-              <Text style={styles.actionText}>Event Management</Text>
-            </TouchableOpacity>
-
-            {/* Post Management */}
-            <TouchableOpacity style={styles.actionRow} onPress={() => navigation?.navigate('Posts')} activeOpacity={0.7}>
-              <View style={styles.actionIconWrapper}>
-                <FileText size={18} color="white" />
-              </View>
-              <Text style={styles.actionText}>Post Management</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* DYNAMIC POST FEED */}
         {feedPosts.map(post => <View key={post.id} style={[styles.card, {
@@ -529,15 +432,20 @@ export const HomeScreen = ({
                         </View>
                         <Text style={styles.commentText}>{comment.content}</Text>
                         
-                        {/* Comment Like Button */}
-                        <TouchableOpacity onPress={() => handleCommentLike(post.id, comment.id)} style={styles.commentLikeButton}>
-                          <ThumbsUp size={12} color={comment.isLiked ? "#4D831E" : "#64748b"} fill={comment.isLiked ? "#E8F5E9" : "none"} />
-                          <Text style={[styles.commentLikeCount, comment.isLiked && {
-                    color: '#4D831E'
-                  }]}>
-                            {comment.likesCount}
-                          </Text>
-                        </TouchableOpacity>
+                        {/* Actions Row: Like & Reply */}
+                        <View style={styles.commentActionsRow}>
+                          <TouchableOpacity onPress={() => handleCommentLike(post.id, comment.id)} style={styles.commentLikeButton}>
+                            <ThumbsUp size={12} color={comment.isLiked ? "#4D831E" : "#64748b"} fill={comment.isLiked ? "#E8F5E9" : "none"} />
+                            <Text style={[styles.commentLikeCount, comment.isLiked && {
+                              color: '#4D831E'
+                            }]}>
+                              {comment.likesCount}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => Alert.alert('Reply', `Reply to ${comment.authorName}`)} style={styles.commentReplyButton}>
+                            <Text style={styles.commentReplyText}>Reply</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>)}
                 </View>
@@ -546,59 +454,25 @@ export const HomeScreen = ({
                 <View style={styles.commentInputRow}>
                   <UserAvatar name="Admin TAS" image={require('../../assets/admin_profile.png')} size={32} />
                   <View style={styles.commentInputContainer}>
-                    <TextInput placeholder="Add a comment..." placeholderTextColor="#94a3b8" value={commentInputs[post.id] || ''} onChangeText={val => setCommentInputs(prev => ({
-                ...prev,
-                [post.id]: val
-              }))} style={styles.commentTextInput} onSubmitEditing={() => handleAddComment(post.id)} />
-                    <TouchableOpacity onPress={() => handleAddComment(post.id)} style={styles.commentSendButton}>
-                      <Send size={14} color="#134074" />
-                    </TouchableOpacity>
+                    <TextInput 
+                      placeholder="Add a comment..." 
+                      placeholderTextColor="#94a3b8" 
+                      value={commentInputs[post.id] || ''} 
+                      onChangeText={val => setCommentInputs(prev => ({
+                        ...prev,
+                        [post.id]: val
+                      }))} 
+                      style={styles.commentTextInput} 
+                      onSubmitEditing={() => handleAddComment(post.id)} 
+                    />
                   </View>
+                  <TouchableOpacity onPress={() => handleAddComment(post.id)} style={styles.commentSendButton}>
+                    <Send size={16} color="#134074" />
+                  </TouchableOpacity>
                 </View>
               </View>}
           </View>)}
 
-        {/* SECTION 4: UPCOMING SOCIETY EVENTS */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Upcoming Society Events</Text>
-          
-          {dbStore.getEvents().slice(0, 3).map((event) => (
-            <View key={event.id} style={styles.eventItem}>
-              <Text style={styles.eventDate}>{event.date.replace(/, \d{4}/, '')}</Text>
-              <Text style={styles.eventTitle}>{event.title}</Text>
-              <Text style={styles.eventDetails}>
-                {event.location} • {event.attendees} Attending
-              </Text>
-            </View>
-          ))}
-
-          {/* Link to all events */}
-          <TouchableOpacity style={styles.viewAllEventsLink} onPress={() => navigation?.navigate('Directory', {
-          subTab: 'events'
-        })}>
-            <Text style={styles.viewAllEventsText}>View All Events</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* SECTION 5: QUICK BROADCAST */}
-        <View style={styles.broadcastCard}>
-          <Text style={styles.broadcastTitle}>Quick Broadcast</Text>
-          <Text style={styles.broadcastSubtitle}>
-            Send an instant secure push notification to all active administrative members.
-          </Text>
-
-          {/* Subject Field */}
-          <TextInput placeholder="Subject..." placeholderTextColor="#94a3b8" value={broadcastSubject} onChangeText={setBroadcastSubject} style={styles.broadcastInput} />
-
-          {/* Message Field */}
-          <TextInput placeholder="Your message here..." placeholderTextColor="#94a3b8" multiline numberOfLines={4} value={broadcastMessage} onChangeText={setBroadcastMessage} style={[styles.broadcastInput, styles.broadcastTextArea]} />
-
-          {/* Send Button */}
-          <TouchableOpacity style={styles.sendButton} onPress={handleSendBroadcast} activeOpacity={0.8}>
-            <Send size={16} color="#0D3866" />
-            <Text style={styles.sendButtonText}>Send Notification</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Bottom padding for navigation spacing */}
         <View style={{
@@ -688,6 +562,8 @@ export const HomeScreen = ({
         </Modal>
       )}
 
+
+
       {/* Floating Scroll to Top */}
       {showScrollTop && <TouchableOpacity onPress={scrollToTop} activeOpacity={0.85} style={styles.scrollTopButton}>
           <ArrowUp size={20} color="white" />
@@ -697,12 +573,11 @@ export const HomeScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
+    backgroundColor: '#F4F7FC'
   },
   header: {
     height: 56,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#EBF3FC',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     flexDirection: 'row',
@@ -1000,15 +875,11 @@ const styles = StyleSheet.create({
   },
   commentsSection: {
     backgroundColor: '#F8FAFC',
-    marginHorizontal: -16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
     marginTop: 12,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16
   },
   commentsHeader: {
     flexDirection: 'row',
@@ -1035,12 +906,7 @@ const styles = StyleSheet.create({
   commentContentWrapper: {
     flex: 1,
     marginLeft: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0'
+    paddingVertical: 2,
   },
   commentAuthorRow: {
     flexDirection: 'row',
@@ -1062,25 +928,37 @@ const styles = StyleSheet.create({
     color: '#334D6E',
     lineHeight: 16
   },
+  commentActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 6,
+  },
   commentLikeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
     gap: 4,
-    alignSelf: 'flex-start'
   },
   commentLikeCount: {
     fontSize: 11,
     color: '#64748b',
     fontWeight: '600'
   },
+  commentReplyButton: {
+    paddingVertical: 2,
+  },
+  commentReplyText: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '700',
+  },
   commentInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    marginBottom: 10
+    marginTop: 8,
   },
   commentInputContainer: {
     flex: 1,
@@ -1090,6 +968,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 18,
     marginLeft: 10,
+    marginRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12
@@ -1101,7 +980,12 @@ const styles = StyleSheet.create({
     paddingVertical: 0
   },
   commentSendButton: {
-    padding: 4
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -1237,5 +1121,85 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  notificationItem: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF'
+  },
+  notificationItemUnread: {
+    backgroundColor: '#F0F6FC',
+    borderColor: '#134074'
+  },
+  notificationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D3866'
+  },
+  notificationTime: {
+    fontSize: 11,
+    color: '#94A3B8'
+  },
+  notificationMessage: {
+    fontSize: 12.5,
+    color: '#334D6E',
+    marginTop: 4
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866'
+  },
+  quickAccessCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 1
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1.5
+  },
+  quickAccessTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0D3866',
+    marginBottom: 12
+  },
+  gridContainer: {
+    flexDirection: 'column',
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  gridItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingVertical: 4,
+  },
+  gridIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  gridText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#334D6E',
+    textAlign: 'center',
   }
 });

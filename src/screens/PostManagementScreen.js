@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, SafeAreaView, Alert, StyleSheet, Platform, Image, Linking, StatusBar, Modal } from 'react-native';
-import { ArrowLeft, Search, Globe, Lock, Edit2, Trash2, Info, Plus, X, ChevronDown, Eye, Heart, MessageSquare, Share2, Home as HomeIcon, BarChart3, Newspaper, Users, ArrowUp, Bold, Italic, List, Image as ImageIcon, FileText, Link, AtSign, Check, ArrowRight } from 'lucide-react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, StyleSheet, Platform, Image, Linking, StatusBar, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArrowLeft, Search, Globe, Lock, Edit2, Trash2, Info, Plus, X, ChevronDown, Eye, Heart, MessageSquare, Share2, Home as HomeIcon, BarChart3, Newspaper, Users, ArrowUp, Bold, Italic, List, Image as ImageIcon, FileText, Link, AtSign, Check, ArrowRight, SlidersHorizontal, Calendar as CalendarIcon } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
 import * as ImagePicker from 'expo-image-picker';
@@ -88,17 +89,19 @@ const parseMarkdown = text => {
 export const PostManagementScreen = ({
   onBack,
   onTabPress,
-  navigation
+  navigation,
+  route
 }) => {
   // Initialize posts from dbStore
   const [posts, setPosts] = useState(dbStore.getPosts());
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [sortBy, setSortBy] = useState('date');
+  const [showSortModal, setShowSortModal] = useState(false);
 
   // Create / Edit state
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [postToDelete, setPostToDelete] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
   const [formTitle, setFormTitle] = useState('');
   const [formBody, setFormBody] = useState('');
@@ -135,11 +138,54 @@ export const PostManagementScreen = ({
     return unsubscribe;
   }, []);
 
-  // Handle Search and Filter
+  // Helper to parse reach strings (e.g. "1.2k") to numbers for sorting
+  const parseReach = (reach) => {
+    if (!reach) return 0;
+    const str = String(reach).toLowerCase().trim();
+    if (str.endsWith('k')) {
+      return parseFloat(str) * 1000;
+    }
+    if (str.endsWith('m')) {
+      return parseFloat(str) * 1000000;
+    }
+    return parseFloat(str) || 0;
+  };
+
+  // Helper to parse dates/times to timestamps for sorting
+  const parsePostDate = (post) => {
+    if (post.status === 'draft') {
+      const lastSaved = post.lastSaved || '';
+      if (lastSaved.includes('now')) return Date.now();
+      const num = parseInt(lastSaved) || 0;
+      if (lastSaved.includes('hour')) return Date.now() - num * 60 * 60 * 1000;
+      if (lastSaved.includes('day')) return Date.now() - num * 24 * 60 * 60 * 1000;
+      return 0;
+    }
+    const dateStr = post.postedDate || '';
+    if (dateStr.toLowerCase() === 'today') {
+      return Date.now();
+    }
+    const parsed = Date.parse(dateStr);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Handle Search, Filter and Sorting
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) || post.body.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTab = activeTab === 'all' || post.status === activeTab;
     return matchesSearch && matchesTab;
+  }).sort((a, b) => {
+    if (sortBy === 'likes') {
+      const likesA = a.likes ?? 0;
+      const likesB = b.likes ?? 0;
+      return likesB - likesA;
+    } else if (sortBy === 'views') {
+      const viewsA = parseReach(a.reach);
+      const viewsB = parseReach(b.reach);
+      return viewsB - viewsA;
+    } else { // 'date'
+      return parsePostDate(b) - parsePostDate(a);
+    }
   });
 
   // Actions
@@ -154,6 +200,14 @@ export const PostManagementScreen = ({
     setAttachedDocument(null);
     setIsFormVisible(true);
   };
+
+  // Handle direct creation from Quick Access params
+  useEffect(() => {
+    if (route?.params?.action === 'new') {
+      handleCreateNew();
+      navigation.setParams({ action: undefined });
+    }
+  }, [route?.params]);
   const handleEdit = post => {
     setEditingPost(post);
     setFormTitle(post.title);
@@ -312,7 +366,16 @@ export const PostManagementScreen = ({
     }
   };
   const handleDelete = id => {
-    setPostToDelete(id);
+    Alert.alert('Confirm Delete', 'Are you sure you want to delete this post?', [{
+      text: 'Cancel',
+      style: 'cancel'
+    }, {
+      text: 'Delete',
+      style: 'destructive',
+      onPress: () => {
+        dbStore.setPosts(posts.filter(p => p.id !== id));
+      }
+    }]);
   };
   const handleSaveForm = overrideStatus => {
     if (!formTitle.trim() || !formBody.trim()) {
@@ -370,7 +433,7 @@ export const PostManagementScreen = ({
   const handleInfoPress = post => {
     Alert.alert('Post Details', `Title: ${post.title}\nStatus: ${post.status.toUpperCase()}\nReach: ${post.reach || 'N/A'}\nLikes: ${post.likes ?? 'N/A'}\nComments: ${post.comments ?? 'N/A'}`);
   };
-  return <SafeAreaView style={styles.container}>
+  return <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Conditionally Render Header based on State */}
       {showSuccessScreen ? <View style={styles.formHeader}>
           <View style={{
@@ -390,7 +453,7 @@ export const PostManagementScreen = ({
       }} />
         </View> : <View style={styles.formHeader}>
           <TouchableOpacity onPress={() => setIsFormVisible(false)} style={styles.formCloseButton}>
-            <X size={24} color="#0D3866" />
+            <X size={22} color="#0D3866" />
           </TouchableOpacity>
           <Text style={styles.formHeaderTitle}>{editingPost ? 'Edit Post' : 'Create Post'}</Text>
           <View style={{
@@ -596,6 +659,10 @@ export const PostManagementScreen = ({
           }} />
               <TextInput style={styles.searchInput} placeholder="Search posts by title, keyword, or author..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
             </View>
+            <TouchableOpacity style={styles.filterButton} onPress={() => setShowSortModal(true)} activeOpacity={0.8}>
+              <SlidersHorizontal size={18} color="#0D3866" />
+              {sortBy !== 'date' && <View style={styles.filterActiveDot} />}
+            </TouchableOpacity>
           </View>
 
           {/* Tab Filter switcher */}
@@ -741,6 +808,60 @@ export const PostManagementScreen = ({
           <TouchableOpacity style={styles.fabButton} onPress={handleCreateNew} activeOpacity={0.85}>
             <Plus size={26} color="white" />
           </TouchableOpacity>
+
+          {/* Sort Options Bottom Sheet / Modal */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={showSortModal}
+            onRequestClose={() => setShowSortModal(false)}
+          >
+            <View style={styles.bottomSheetOverlay}>
+              <View style={styles.bottomSheetContent}>
+                <View style={styles.bottomSheetHeader}>
+                  <Text style={styles.bottomSheetTitle}>Sort Posts By</Text>
+                  <TouchableOpacity onPress={() => setShowSortModal(false)} style={styles.closeSheetBtn}>
+                    <X size={20} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.sortOptionsList}>
+                  <TouchableOpacity 
+                    style={[styles.sortOptionItem, sortBy === 'date' && styles.sortOptionItemActive]} 
+                    onPress={() => { setSortBy('date'); setShowSortModal(false); }}
+                  >
+                    <View style={styles.sortOptionTextGroup}>
+                      <CalendarIcon size={16} color={sortBy === 'date' ? '#0D3866' : '#64748B'} style={{ marginRight: 10 }} />
+                      <Text style={[styles.sortOptionText, sortBy === 'date' && styles.sortOptionTextActive]}>Date of Upload</Text>
+                    </View>
+                    {sortBy === 'date' && <Check size={18} color="#0D3866" />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.sortOptionItem, sortBy === 'likes' && styles.sortOptionItemActive]} 
+                    onPress={() => { setSortBy('likes'); setShowSortModal(false); }}
+                  >
+                    <View style={styles.sortOptionTextGroup}>
+                      <Heart size={16} color={sortBy === 'likes' ? '#0D3866' : '#64748B'} style={{ marginRight: 10 }} fill={sortBy === 'likes' ? '#0D3866' : 'none'} />
+                      <Text style={[styles.sortOptionText, sortBy === 'likes' && styles.sortOptionTextActive]}>Like Count</Text>
+                    </View>
+                    {sortBy === 'likes' && <Check size={18} color="#0D3866" />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.sortOptionItem, sortBy === 'views' && styles.sortOptionItemActive]} 
+                    onPress={() => { setSortBy('views'); setShowSortModal(false); }}
+                  >
+                    <View style={styles.sortOptionTextGroup}>
+                      <Eye size={16} color={sortBy === 'views' ? '#0D3866' : '#64748B'} style={{ marginRight: 10 }} />
+                      <Text style={[styles.sortOptionText, sortBy === 'views' && styles.sortOptionTextActive]}>Most Viewed</Text>
+                    </View>
+                    {sortBy === 'views' && <Check size={18} color="#0D3866" />}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </View>)}
 
       {/* Fallback Bottom Navigation (Visible when navigation is standalone) */}
@@ -762,59 +883,20 @@ export const PostManagementScreen = ({
             <TouchableOpacity style={styles.footerTabItem} onPress={() => onTabPress?.('Connect')}>
               <Users size={22} color="#134074" />
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.footerTabItem} onPress={() => onTabPress?.('directory')}>
-              <DirectoryBookIcon color="#134074" />
-            </TouchableOpacity>
           </View>
         </View>}
 
-      {/* Premium Round Corner Confirm Delete Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={postToDelete !== null}
-        onRequestClose={() => setPostToDelete(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.confirmModalContent}>
-            <Text style={styles.confirmModalTitle}>Confirm Delete</Text>
-            <Text style={styles.confirmModalBody}>Are you sure you want to delete this post?</Text>
-            <View style={styles.confirmModalButtons}>
-              <TouchableOpacity
-                style={[styles.confirmModalBtn, styles.cancelBtn]}
-                onPress={() => setPostToDelete(null)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cancelBtnText}>CANCEL</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmModalBtn, styles.deleteBtn]}
-                onPress={() => {
-                  if (postToDelete) {
-                    dbStore.setPosts(posts.filter(p => p.id !== postToDelete));
-                    setPostToDelete(null);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.deleteBtnText}>DELETE</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>;
 };
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingTop: 0,
     flex: 1,
-    backgroundColor: '#F4F7FB'
+    backgroundColor: '#F4F7FC'
   },
   header: {
     height: 56,
-    backgroundColor: '#E9F0FA',
+    backgroundColor: '#EBF3FC',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',
     flexDirection: 'row',
@@ -832,12 +914,15 @@ const styles = StyleSheet.create({
     color: '#0D3866'
   },
   searchContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
-    backgroundColor: '#F4F7FB'
+    backgroundColor: '#F4F7FB',
+    gap: 8
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -852,6 +937,95 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#334D6E',
     padding: 0
+  },
+  filterButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    width: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#467A18'
+  },
+  bottomSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheetContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -4
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10
+  },
+  bottomSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 12
+  },
+  bottomSheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D3866'
+  },
+  closeSheetBtn: {
+    padding: 4
+  },
+  sortOptionsList: {
+    flexDirection: 'column',
+    gap: 8
+  },
+  sortOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  sortOptionItemActive: {
+    backgroundColor: '#F0F5FC',
+    borderColor: '#0D3866'
+  },
+  sortOptionTextGroup: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  sortOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569'
+  },
+  sortOptionTextActive: {
+    color: '#0D3866',
+    fontWeight: '700'
   },
   tabSwitcherRow: {
     flexDirection: 'row',
@@ -1069,7 +1243,7 @@ const styles = StyleSheet.create({
   },
   formHeader: {
     height: 56,
-    backgroundColor: '#E9F0FA',
+    backgroundColor: '#EBF3FC',
     borderBottomWidth: 1,
     borderBottomColor: '#DBEAFE',
     flexDirection: 'row',
@@ -1375,7 +1549,7 @@ const styles = StyleSheet.create({
   },
   successHeader: {
     height: 56,
-    backgroundColor: '#E9F0FA',
+    backgroundColor: '#EBF3FC',
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',

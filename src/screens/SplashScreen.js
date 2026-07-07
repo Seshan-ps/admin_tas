@@ -1,8 +1,18 @@
 import React, { useEffect } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 export const SplashScreen = ({
   onFinish
 }) => {
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'android'
+    ? (insets.top === 0 ? 24 : insets.top)
+    : insets.top;
+  const bottomPadding = Platform.OS === 'android'
+    ? (insets.bottom === 0 ? 24 : insets.bottom)
+    : insets.bottom;
+
   useEffect(() => {
     if (onFinish) {
       const timer = setTimeout(() => {
@@ -11,17 +21,20 @@ export const SplashScreen = ({
       return () => clearTimeout(timer);
     }
   }, [onFinish]);
+
   return <View className="flex-1 bg-white relative">
       <Image source={require('../../assets/background.png')} style={StyleSheet.absoluteFill} resizeMode="cover" />
 
       <View style={{
       flex: 1,
       justifyContent: 'space-between',
-      alignItems: 'center'
-    }} className="py-16 px-8">
+      alignItems: 'center',
+      paddingTop: topPadding + 16,
+      paddingBottom: bottomPadding + 16
+    }} className="px-8">
         {/* Top Spacer to balance layout */}
         <View style={{
-        height: 40
+        height: 20
       }} />
 
         {/* Center Content */}
@@ -45,3 +58,4 @@ export const SplashScreen = ({
       </View>
     </View>;
 };
+

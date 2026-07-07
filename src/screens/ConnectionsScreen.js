@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, Image, Platform, StatusBar } from 'react-native';
-import { ArrowLeft, Home, BarChart3, Newspaper, Users } from 'lucide-react-native';
+import { ArrowLeft, Home, BarChart3, Newspaper, Users, ArrowUp } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { dbStore } from '../config/dbStore';
 export const ConnectionsScreen = ({
@@ -10,6 +10,18 @@ export const ConnectionsScreen = ({
 }) => {
   const [queue, setQueue] = useState(dbStore.getQueue());
   const [approvedList, setApprovedList] = useState(dbStore.getApprovedList());
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollRef = React.useRef(null);
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(offsetY > 300);
+  };
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({
+      y: 0,
+      animated: true
+    });
+  };
   useEffect(() => {
     const unsubscribe = dbStore.subscribe(() => {
       setQueue([...dbStore.getQueue()]);
@@ -85,9 +97,37 @@ export const ConnectionsScreen = ({
         <Text className="text-[20px] font-bold text-[#134074]">Connections</Text>
       </View>
 
-      <ScrollView className="flex-1 no-scrollbar" showsVerticalScrollIndicator={false} contentContainerStyle={{
+      <ScrollView ref={scrollRef} onScroll={handleScroll} scrollEventThrottle={16} className="flex-1 no-scrollbar" showsVerticalScrollIndicator={false} contentContainerStyle={{
       paddingBottom: 130
     }}>
+        {/* Directory Navigation Button */}
+        <TouchableOpacity
+          onPress={() => {
+            if (navigation) {
+              navigation.navigate('Directory');
+            } else if (onTabPress) {
+              onTabPress('directory');
+            }
+          }}
+          activeOpacity={0.85}
+          className="bg-white border border-slate-200/80 mx-4 mt-5 p-4 rounded-2xl flex-row items-center justify-between shadow-sm"
+        >
+          <View className="flex-row items-center flex-1">
+            <View className="w-10 h-10 rounded-xl bg-green-50 justify-center items-center mr-3 border border-green-100">
+              <DirectoryBookIcon color="#70B62C" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-[16px] font-extrabold text-[#134074]">Member Directory</Text>
+              <Text className="text-[12px] text-slate-500 mt-0.5">View and search all registered society members</Text>
+            </View>
+          </View>
+          <View className="bg-[#E9F0FA] rounded-full p-2">
+            <Svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <Path d="M9 5l7 7-7 7" stroke="#134074" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </View>
+        </TouchableOpacity>
+
         {/* Verification Queue Section */}
         <Text className="text-[24px] font-extrabold text-[#134074] mx-4 mt-5 mb-3">Approval Requests</Text>
 
@@ -191,10 +231,32 @@ export const ConnectionsScreen = ({
             <Users size={20} color="#70B62C" />
             <Text className="text-xs font-bold text-[#70B62C] ml-2">Connect</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity className="items-center" onPress={() => onTabPress?.('directory')}>
-            <DirectoryBookIcon color="#134074" />
-          </TouchableOpacity>
         </View>}
+
+      {showScrollTop && (
+        <TouchableOpacity
+          onPress={scrollToTop}
+          activeOpacity={0.85}
+          style={{
+            position: 'absolute',
+            bottom: Platform.OS === 'ios' ? 100 : 86,
+            right: 16,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: '#0D3866',
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 5,
+            zIndex: 99
+          }}
+        >
+          <ArrowUp size={20} color="white" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>;
 };
